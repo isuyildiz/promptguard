@@ -1,11 +1,25 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Auth/Login';
+import Chat from './pages/Chat/Chat';
+
 function App() {
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <h1 className="text-3xl font-bold text-blue-600">
-        PromptGuard Frontend Başlatıldı!
-      </h1>
-    </div>
-  )
+    <Router>
+      <div className="min-h-screen bg-gray-50">
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/chat" element={<Chat />} />
+          
+          {/* Kök dizine gelindiğinde otomatik Login'e yönlendir */}
+          <Route path="/" element={<Navigate to="/login" />} />
+          
+          {/* Tanımsız rotalar için güvenli yönlendirme */}
+          <Route path="*" element={<Navigate to="/login" />} />
+        </Routes>
+      </div>
+    </Router>
+  );
 }
 
-export default App
+export default App;
