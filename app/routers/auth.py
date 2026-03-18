@@ -1,0 +1,121 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from passlib.context import CryptContext
+from jose import jwt
+from datetime import datetime, timedelta
+from pydantic import BaseModel
+from typing import Optional
+from app.database import get_db
+from app.models.user import User
+from app.models.institution import Institution
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
+
+
+# --- Gelen veriyi tanımlayan modeller ---
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    user_mode: str = "individual"
+    institution_code: Optional[str] = None
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+# --- Yardımcı fonksiyonlar ---
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+# --- Endpoint'ler ---
+
+@router.post("/register")
+def register(body: RegisterRequest, db: Session = Depends(get_db)):
+    # Aynı email ile kayıt var mı kontrol et
+    existing = db.query(User).filter(User.email == body.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Bu email zaten kayıtlı")
+
+    # Kurumsal kayıt ise institution_code doğrula
+    institution_id = None
+    role = "individual"
+    if body.user_mode == "institutional":
+        if not body.institution_code:
+            raise HTTPException(status_code=400, detail="Kurumsal kayıt için institution_code gerekli")
+        institution = db.query(Institution).filter(
+            Institution.code == body.institution_code
+        ).first()
+        if not institution:
+            raise HTTPException(status_code=404, detail="Kurum bulunamadı")
+        institution_id = institution.id
+        role = "corporate_member"
+
+    # Şifreyi hashle
+    hashed = pwd_context.hash(body.password)
+
+    # Kullanıcıyı kaydet
+    new_user = User(
+        email=body.email,
+        hashed_password=hashed,
+        role=role,
+        user_mode=body.user_mode,
+        institution_id=institution_id
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return {"message": "Kayıt başarılı"}
+
+
+@router.post("/login")
+def login(body: LoginRequest, db: Session = Depends(get_db)):
+    # Kullanıcıyı bul
+    user = db.query(User).filter(User.email == body.email).first()
+
+    # Kullanıcı yoksa veya şifre yanlışsa aynı hatayı ver (güvenlik)
+    if not user or not pwd_context.verify(body.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Email veya şifre hatalı")
+
+    # Hesap aktif mi?
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Hesabınız devre dışı bırakılmış")
+
+    # Token içine koyulacak bilgiler — bunlar JWT'den okunacak
+    token_data = {
+        "sub": str(user.id),
+        "user_mode": user.user_mode,
+        "institution_id": user.institution_id,
+        "role": user.role
+    }
+
+    token = create_access_token(token_data)
+
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }
+
+
+@router.post("/logout")
+def logout():
+    # JWT stateless çalışır — sunucuda silinecek bir şey yok
+    # Token'ı silmek frontend'in sorumluluğu
+    return {"message": "Çıkış başarılı"}
