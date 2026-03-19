@@ -4,6 +4,8 @@ from typing import Optional
 from datetime import datetime
 from app.middleware.jwt_middleware import get_current_user
 from app.services.llm_service import send_to_llm
+from pii_module.detector import detect_sensitive_data
+from app.logger import log_entry
 
 router = APIRouter(tags=["gateway"])
 
@@ -103,7 +105,7 @@ def analyze(body: SendRequest, current_user: dict = Depends(get_current_user)):
 
     # Modülleri çalıştır
     # TODO: Kişi 2 hazır olunca -> detect_sensitive_data(internal_payload)
-    pii_result = placeholder_pii(internal_payload)
+    pii_result = detect_sensitive_data(internal_payload)
 
     # TODO: Kişi 3 hazır olunca -> analyze_ethics(internal_payload)
     ethics_result = placeholder_ethics(internal_payload)
@@ -155,7 +157,7 @@ def send(body: SendRequest, current_user: dict = Depends(get_current_user)):
 
     # Modülleri çalıştır
     # TODO: Kişi 2 hazır olunca -> detect_sensitive_data(internal_payload)
-    pii_result = placeholder_pii(internal_payload)
+    pii_result = detect_sensitive_data(internal_payload)
 
     # TODO: Kişi 3 hazır olunca -> analyze_ethics(internal_payload)
     ethics_result = placeholder_ethics(internal_payload)
@@ -181,6 +183,13 @@ def send(body: SendRequest, current_user: dict = Depends(get_current_user)):
 
     # TODO: Kişi 2 hazır olunca log kaydı buraya eklenecek
     # (warn, warn_and_log durumlarında log_required = True)
+    if decision["log_required"]:
+        log_entry(
+            payload=internal_payload,
+            pii_result=pii_result,
+            ethics_result=ethics_result,
+            decision=decision
+        )
 
     return {
         "final_action": decision["final_action"],

@@ -4,6 +4,7 @@ from app.models import institution, user, session
 from app.models.institution import Institution
 from app.models.user import User
 from app.models.session import Session
+from app.models.log_models import PromptLog, Alert
 from app.routers import auth, gateway, admin
 
 Base.metadata.create_all(bind=engine)

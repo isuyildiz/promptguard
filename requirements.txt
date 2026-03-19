@@ -6,3 +6,5 @@ passlib[bcrypt]
 python-dotenv
 openai
 httpx
+presidio-analyzer
+spacy
