@@ -2,22 +2,36 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+function parseJwt(token) {
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
 
-  // Sayfa yenilendiğinde token varsa kullanıcıyı hatırla
-  useEffect(() => {
-    if (token) {
-      // Burada ileride token decode edilerek user_mode ve user_id alınabilir
-      setUser({ loggedIn: true }); 
-    }
-  }, [token]);
+export const AuthProvider = ({ children }) => {
+  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [user, setUser] = useState(() => {
+    const stored = localStorage.getItem('token');
+    if (!stored) return null;
+    const decoded = parseJwt(stored);
+    return decoded
+      ? { email: null, mode: decoded.user_mode, userId: decoded.sub, role: decoded.role }
+      : null;
+  });
 
   const login = (newToken, userData) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);
-    setUser(userData);
+    const decoded = parseJwt(newToken);
+    setUser({
+      email: userData.email,
+      mode: decoded?.user_mode ?? userData.mode,
+      userId: decoded?.sub,
+      role: decoded?.role,
+    });
   };
 
   const logout = () => {

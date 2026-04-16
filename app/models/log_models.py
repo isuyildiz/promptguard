@@ -37,6 +37,8 @@ class PromptLog(Base):
 
     # Final karar
     final_action        = Column(String,  nullable=False)  # allow / warn / mask_and_allow / warn_and_log / block
+    final_risk_score    = Column(Integer, nullable=True)   # 0-100 birleşik risk skoru
+    final_risk_level    = Column(String,  nullable=True)   # low / medium / high / critical
 
     # Performans
     processing_time_ms  = Column(Integer, nullable=True)

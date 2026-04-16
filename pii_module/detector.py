@@ -129,6 +129,35 @@ health_data_recognizer = PatternRecognizer(
     ],
 )
 
+# PHONE recognizer — phonenumbers kütüphanesinin kaçırdığı formatları yakalar
+# Format örnekleri: 555-123-4567 | (555) 123-4567 | 555.123.4567 | +1 555 123 4567
+# Türkçe: 0532 123 45 67 | +90 532 123 45 67
+phone_recognizer = PatternRecognizer(
+    supported_entity="PHONE_NUMBER",
+    patterns=[
+        Pattern(
+            name="phone_us_dashes",
+            regex=r"\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b",
+            score=0.75,
+        ),
+        Pattern(
+            name="phone_us_parentheses",
+            regex=r"\(\d{3}\)\s*\d{3}[-.\s]\d{4}",
+            score=0.75,
+        ),
+        Pattern(
+            name="phone_international",
+            regex=r"\+\d{1,3}[\s\-]\d{2,4}[\s\-]\d{3,4}[\s\-]\d{2,4}",
+            score=0.75,
+        ),
+        Pattern(
+            name="phone_tr_mobile",
+            regex=r"\b0[5][0-9]{2}[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}\b",
+            score=0.75,
+        ),
+    ],
+)
+
 # Turkish TC Kimlik No (11 digit, starting with non-zero)
 tc_kimlik_recognizer = PatternRecognizer(
     supported_entity="ID_NUMBER",
@@ -150,17 +179,10 @@ from presidio_analyzer.nlp_engine import NlpEngineProvider
 def _build_analyzer() -> AnalyzerEngine:
     """
     Build AnalyzerEngine with a blank spaCy model (pattern-only mode).
-    Falls back to default AnalyzerEngine if a real model is available.
+    NER tabanlı tanıma devre dışı — yalnızca regex/pattern recognizer'lar aktif.
+    Bu sayede spaCy NER'in ürettiği yanlış pozitifler (ör. sıradan kelimelerin
+    PERSON olarak etiketlenmesi) tamamen önlenir.
     """
-    try:
-        # Try default (needs en_core_web_sm or similar)
-        engine = AnalyzerEngine()
-        engine.analyze(text="test", language="en")
-        return engine
-    except OSError:
-        pass
-
-    # Fallback: blank spaCy model (pattern/regex recognizers still work)
     blank_nlp = spacy.blank("en")
     tmp = tempfile.mkdtemp()
     blank_nlp.to_disk(tmp)
@@ -175,6 +197,7 @@ def _build_analyzer() -> AnalyzerEngine:
 
 analyzer = _build_analyzer()
 analyzer.registry.add_recognizer(password_recognizer)
+analyzer.registry.add_recognizer(phone_recognizer)
 analyzer.registry.add_recognizer(tc_kimlik_recognizer)
 analyzer.registry.add_recognizer(health_data_recognizer)
 
@@ -276,8 +299,8 @@ def detect_sensitive_data(payload: dict) -> dict:
     """
     prompt = payload.get("prompt", "")
 
-    # Run Presidio analysis
-    analysis_results = analyzer.analyze(text=prompt, language="en")
+    # Run Presidio analysis — score_threshold=0.6 ile düşük güvenli yanlış pozitifleri filtrele
+    analysis_results = analyzer.analyze(text=prompt, language="en", score_threshold=0.6)
 
     # Map entity types and collect raw entities
     raw_entities = []

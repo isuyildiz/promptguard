@@ -3,6 +3,7 @@ import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axiosConfig';
 
 /* ─── SVG İkonlar ─────────────────────────────────────────────── */
 const ShieldIcon = () => (
@@ -444,14 +445,35 @@ const AuthPage = () => {
                   <Formik
                     initialValues={{ email: '', password: '' }}
                     validationSchema={loginSchema}
-                    onSubmit={(values) => {
-                      const mockToken = 'dummy-jwt-token';
-                      login(mockToken, { email: values.email, mode: userMode });
-                      navigate('/chat');
+                    onSubmit={async (values, { setStatus, setSubmitting }) => {
+                      try {
+                        const res = await api.post('/auth/login', {
+                          email: values.email,
+                          password: values.password,
+                        });
+                        login(res.data.access_token, { email: values.email, mode: userMode });
+                        // Decode JWT to get role without importing AuthContext helper
+                        let role = null;
+                        try {
+                          const base64 = res.data.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                          role = JSON.parse(atob(base64))?.role;
+                        } catch {}
+                        navigate(role === 'corporate_admin' ? '/admin' : '/chat');
+                      } catch (err) {
+                        const msg = err.response?.data?.detail || 'Login failed.';
+                        setStatus(msg);
+                      } finally {
+                        setSubmitting(false);
+                      }
                     }}
                   >
-                    {({ errors, touched }) => (
+                    {({ errors, touched, status, isSubmitting }) => (
                       <Form className="form-stack">
+                        {status && (
+                          <div style={{ color: '#f87171', fontSize: 13, textAlign: 'center', padding: '8px 12px', background: 'rgba(220,38,38,0.08)', borderRadius: 8, border: '1px solid rgba(220,38,38,0.2)' }}>
+                            {status}
+                          </div>
+                        )}
                         <div className="input-group">
                           <label className="input-label">Email Address</label>
                           <Field name="email" type="email" placeholder="name@company.com" className="input-field" />
@@ -481,7 +503,9 @@ const AuthPage = () => {
                           </button>
                         </div>
 
-                        <button type="submit" className="submit-btn">Login</button>
+                        <button type="submit" className="submit-btn" disabled={isSubmitting}>
+                          {isSubmitting ? 'Logging in...' : 'Login'}
+                        </button>
 
                         <div className="tos-text">
                           By continuing, you agree to PromptGuard's{' '}
@@ -498,10 +522,30 @@ const AuthPage = () => {
                     initialValues={{ name: '', email: '', institutionCode: '', password: '', confirmPassword: '' }}
                     validationSchema={registerSchema}
                     validationContext={{ userMode }}
-                    onSubmit={() => setCurrentView('login')}
+                    onSubmit={async (values, { setStatus, setSubmitting }) => {
+                      try {
+                        await api.post('/auth/register', {
+                          email: values.email,
+                          password: values.password,
+                          user_mode: userMode,
+                          institution_code: userMode === 'institutional' ? values.institutionCode : undefined,
+                        });
+                        setCurrentView('login');
+                      } catch (err) {
+                        const msg = err.response?.data?.detail || 'Registration failed.';
+                        setStatus(msg);
+                      } finally {
+                        setSubmitting(false);
+                      }
+                    }}
                   >
-                    {({ errors, touched }) => (
+                    {({ errors, touched, status, isSubmitting }) => (
                       <Form className="form-stack">
+                        {status && (
+                          <div style={{ color: '#f87171', fontSize: 13, textAlign: 'center', padding: '8px 12px', background: 'rgba(220,38,38,0.08)', borderRadius: 8, border: '1px solid rgba(220,38,38,0.2)' }}>
+                            {status}
+                          </div>
+                        )}
                         <div className="input-group">
                           <label className="input-label">Full Name</label>
                           <Field name="name" type="text" placeholder="John Doe" className="input-field" />
@@ -561,7 +605,9 @@ const AuthPage = () => {
                           </div>
                         </div>
 
-                        <button type="submit" className="submit-btn">Register Account</button>
+                        <button type="submit" className="submit-btn" disabled={isSubmitting}>
+                          {isSubmitting ? 'Creating account...' : 'Register Account'}
+                        </button>
 
                         <div className="tos-text">
                           By continuing, you agree to PromptGuard's{' '}

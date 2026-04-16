@@ -79,7 +79,9 @@ def log_entry(
             violation_confidence = ethics_result.get("confidence"),
 
             # Final karar
-            final_action = decision["final_action"],
+            final_action      = decision["final_action"],
+            final_risk_score  = decision.get("final_risk_score"),
+            final_risk_level  = decision.get("final_risk_level"),
         )
 
         db.add(log)
@@ -93,10 +95,7 @@ def log_entry(
         user_mode     = payload.get("user_mode", "individual")
         institution_id= payload.get("metadata", {}).get("institution_id")
 
-        should_alert = (
-            final_action == "block" or
-            (final_action == "warn_and_log" and user_mode == "institutional")
-        )
+        should_alert = final_action in ("block", "warn_and_log")
 
         if should_alert:
             # PII kaynaklı alert

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axiosConfig';
 
 /* ─── SVG İkonlar ─────────────────────────────────────────────── */
 const ShieldIcon = () => (
@@ -57,45 +58,6 @@ const ChevronIcon = ({ up }) => (
   </svg>
 );
 
-/* ─── Mock Veriler ────────────────────────────────────────────── */
-const MOCK_STATS = {
-  totalUsers: 142,
-  activeAlerts: 23,
-  blockedPrompts: 8,
-  safePrompts: 311,
-};
-
-const MOCK_RECENT_ALERTS = [
-  { id: 1, user: 'Ahmet Yılmaz', initials: 'AY', category: 'academic_misuse', riskLevel: 'medium', action: 'warn_and_log', time: '2 mins ago' },
-  { id: 2, user: 'Zeynep Kaya', initials: 'ZK', category: 'exam_cheating_attempt', riskLevel: 'critical', action: 'block', time: '15 mins ago' },
-  { id: 3, user: 'Mehmet Demir', initials: 'MD', category: 'full_task_delegation', riskLevel: 'high', action: 'warn_and_log', time: '42 mins ago' },
-  { id: 4, user: 'Elif Şahin', initials: 'EŞ', category: 'suspicious_request', riskLevel: 'low', action: 'warn', time: '1 hour ago' },
-  { id: 5, user: 'Can Öztürk', initials: 'CÖ', category: 'policy_violation', riskLevel: 'high', action: 'warn_and_log', time: '2 hours ago' },
-];
-
-const MOCK_ALERTS = [
-  { id: 1, user: 'Ahmet Yılmaz', userId: 'u001', maskedPrompt: '"Write my entire [TASK] for me so I can submit..."', category: 'full_task_delegation', riskScore: 88, action: 'warn_and_log', reviewed: false, time: '2m ago' },
-  { id: 2, user: 'Zeynep Kaya', userId: 'u002', maskedPrompt: '"My name is [PERSON_1], ID: [ID_NUMBER]. Solve this exam..."', category: 'exam_cheating_attempt', riskScore: 95, action: 'block', reviewed: false, time: '14m ago' },
-  { id: 3, user: 'Mehmet Demir', userId: 'u003', maskedPrompt: '"Complete the homework assignment on neural networks..."', category: 'academic_misuse', riskScore: 72, action: 'warn_and_log', reviewed: true, time: '1h ago' },
-  { id: 4, user: 'Elif Şahin', userId: 'u004', maskedPrompt: '"Can you help me understand this concept better..."', category: 'suspicious_request', riskScore: 34, action: 'warn', reviewed: true, time: '2h ago' },
-  { id: 5, user: 'Can Öztürk', userId: 'u005', maskedPrompt: '"My credit card [FINANCIAL_DATA] process payment..."', category: 'policy_violation', riskScore: 91, action: 'block', reviewed: false, time: '3h ago' },
-];
-
-const MOCK_USERS = [
-  { id: 'u001', name: 'Ahmet Yılmaz', initials: 'AY', email: 'ahmet@university.edu', role: 'institutional', isActive: true, alerts: 3, joined: '12 Mar 2026' },
-  { id: 'u002', name: 'Zeynep Kaya', initials: 'ZK', email: 'zeynep@university.edu', role: 'institutional', isActive: true, alerts: 5, joined: '10 Mar 2026' },
-  { id: 'u003', name: 'Mehmet Demir', initials: 'MD', email: 'mehmet@university.edu', role: 'institutional', isActive: false, alerts: 1, joined: '8 Mar 2026' },
-  { id: 'u004', name: 'Elif Şahin', initials: 'EŞ', email: 'elif@university.edu', role: 'institutional', isActive: true, alerts: 0, joined: '5 Mar 2026' },
-  { id: 'u005', name: 'Can Öztürk', initials: 'CÖ', email: 'can@university.edu', role: 'institutional', isActive: true, alerts: 2, joined: '1 Mar 2026' },
-];
-
-const MOCK_LOGS = [
-  { id: 'log001', user: 'Ahmet Yılmaz', maskedPrompt: 'Write my entire [TASK] for me...', finalAction: 'warn_and_log', riskLevel: 'high', riskScore: 88, timestamp: '2026-03-12T20:42:00Z' },
-  { id: 'log002', user: 'Zeynep Kaya', maskedPrompt: 'My name is [PERSON_1], ID: [ID_NUMBER]...', finalAction: 'block', riskLevel: 'critical', riskScore: 95, timestamp: '2026-03-12T20:30:00Z' },
-  { id: 'log003', user: 'Mehmet Demir', maskedPrompt: 'Explain recursion with a simple example.', finalAction: 'allow', riskLevel: 'low', riskScore: 4, timestamp: '2026-03-12T20:15:00Z' },
-  { id: 'log004', user: 'Elif Şahin', maskedPrompt: 'My email is [EMAIL]. Can you help me write...', finalAction: 'mask_and_allow', riskLevel: 'medium', riskScore: 55, timestamp: '2026-03-12T19:58:00Z' },
-  { id: 'log005', user: 'Can Öztürk', maskedPrompt: 'Credit card [FINANCIAL_DATA] process payment...', finalAction: 'block', riskLevel: 'critical', riskScore: 91, timestamp: '2026-03-12T19:40:00Z' },
-];
 
 /* ─── Badge Yardımcıları ──────────────────────────────────────── */
 const RISK_COLORS = {
@@ -191,72 +153,88 @@ const UserAvatar = ({ initials }) => (
 /* ─── Tab İçerikleri ─────────────────────────────────────────── */
 
 /* Overview */
-const OverviewTab = () => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-    <div>
-      <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: 26, fontWeight: 800, color: 'white', marginBottom: 4 }}>Admin Panel</h1>
-      <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>Real-time system health and security monitoring.</p>
-    </div>
+const OverviewTab = () => {
+  const [stats, setStats] = useState(null);
+  const [alerts, setAlerts] = useState([]);
 
-    {/* Stat kartları */}
-    <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-      <StatCard label="Total Users"      value={MOCK_STATS.totalUsers}      icon={<UsersIcon />}     accentColor="#a78bfa" />
-      <StatCard label="Active Alerts"    value={MOCK_STATS.activeAlerts}    icon={<WarnIcon />}      accentColor="#fbbf24" />
-      <StatCard label="Blocked Prompts"  value={MOCK_STATS.blockedPrompts}  icon={<LockIcon />}      accentColor="#f87171" />
-      <StatCard label="Safe Prompts"     value={MOCK_STATS.safePrompts}     icon={<ShieldCheckIcon />} accentColor="#4ade80" />
-    </div>
+  useEffect(() => {
+    api.get('/admin/stats').then(r => setStats(r.data)).catch(() => {});
+    api.get('/admin/alerts').then(r => setAlerts(r.data.alerts || [])).catch(() => {});
+  }, []);
 
-    {/* Recent Alerts tablosu */}
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: 17, fontWeight: 700, color: 'white' }}>Recent Alerts</h2>
-        <span style={{ fontSize: 12, color: '#7c3aed', cursor: 'pointer' }}>View All →</span>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <div>
+        <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: 26, fontWeight: 800, color: 'white', marginBottom: 4 }}>Admin Panel</h1>
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>Real-time system health and security monitoring.</p>
       </div>
-      <TableWrap>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <Th>User</Th>
-              <Th>Category</Th>
-              <Th>Risk Level</Th>
-              <Th>Action Taken</Th>
-              <Th>Time</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {MOCK_RECENT_ALERTS.map(row => (
-              <tr key={row.id} style={{ transition: 'background 0.15s' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                <Td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <UserAvatar initials={row.initials} />
-                    <span style={{ fontWeight: 500, color: 'white' }}>{row.user}</span>
-                  </div>
-                </Td>
-                <Td><span style={{ fontStyle: 'italic', color: 'rgba(255,255,255,0.5)' }}>{row.category}</span></Td>
-                <Td><RiskBadge level={row.riskLevel} /></Td>
-                <Td><ActionBadge action={row.action} /></Td>
-                <Td style={{ color: 'rgba(255,255,255,0.35)' }}>{row.time}</Td>
+
+      {/* Stat kartları */}
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+        <StatCard label="Total Users"     value={stats?.total_users ?? '—'}   icon={<UsersIcon />}      accentColor="#a78bfa" />
+        <StatCard label="Active Alerts"   value={stats?.total_alerts ?? '—'}  icon={<WarnIcon />}       accentColor="#fbbf24" />
+        <StatCard label="Blocked Prompts" value={stats?.blocked_count ?? '—'} icon={<LockIcon />}       accentColor="#f87171" />
+        <StatCard label="Total Prompts"   value={stats?.total_prompts ?? '—'} icon={<ShieldCheckIcon />} accentColor="#4ade80" />
+      </div>
+
+      {/* Recent Alerts tablosu */}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: 17, fontWeight: 700, color: 'white' }}>Recent Alerts</h2>
+        </div>
+        <TableWrap>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <Th>User</Th>
+                <Th>Category</Th>
+                <Th>Risk Level</Th>
+                <Th>Action Taken</Th>
+                <Th>Time</Th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableWrap>
+            </thead>
+            <tbody>
+              {alerts.length === 0 ? (
+                <tr><Td colSpan={5} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: 24 }}>No alerts yet.</Td></tr>
+              ) : alerts.slice(0, 5).map(row => (
+                <tr key={row.id} style={{ transition: 'background 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <Td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <UserAvatar initials={(row.user_id || '??').toString().slice(0, 2).toUpperCase()} />
+                      <span style={{ fontWeight: 500, color: 'white' }}>{row.user_id}</span>
+                    </div>
+                  </Td>
+                  <Td><span style={{ fontStyle: 'italic', color: 'rgba(255,255,255,0.5)' }}>{row.category || row.alert_type || '—'}</span></Td>
+                  <Td><RiskBadge level={row.risk_level || row.severity || 'low'} /></Td>
+                  <Td><ActionBadge action={row.action || 'block'} /></Td>
+                  <Td style={{ color: 'rgba(255,255,255,0.35)' }}>{row.timestamp ? new Date(row.timestamp).toLocaleTimeString() : '—'}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableWrap>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* Alerts */
 const AlertsTab = () => {
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState('all');
-  const [alerts, setAlerts] = useState(MOCK_ALERTS);
+  const [alerts, setAlerts] = useState([]);
+
+  useEffect(() => {
+    api.get('/admin/alerts').then(r => setAlerts(r.data.alerts || [])).catch(() => {});
+  }, []);
 
   const filtered = alerts.filter(a => {
-    const matchSearch = a.user.toLowerCase().includes(search.toLowerCase()) ||
-      a.maskedPrompt.toLowerCase().includes(search.toLowerCase());
-    const matchRisk = riskFilter === 'all' || a.riskScore >= { high: 70, critical: 90 }[riskFilter] || 0;
+    const matchSearch = !search ||
+      String(a.user_id).toLowerCase().includes(search.toLowerCase()) ||
+      String(a.masked_prompt || '').toLowerCase().includes(search.toLowerCase());
+    const matchRisk = riskFilter === 'all' || a.risk_score >= { high: 70, critical: 90 }[riskFilter] || 0;
     return matchSearch && matchRisk;
   });
 
@@ -319,16 +297,17 @@ const AlertsTab = () => {
             </tr>
           </thead>
           <tbody>
-            {filtered.map(row => (
+            {filtered.length === 0 ? (
+              <tr><Td colSpan={7} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: 24 }}>No alerts found.</Td></tr>
+            ) : filtered.map(row => (
               <tr key={row.id}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 <Td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <UserAvatar initials={row.user.split(' ').map(n => n[0]).join('')} />
+                    <UserAvatar initials={String(row.user_id || '?').slice(0, 2).toUpperCase()} />
                     <div>
-                      <div style={{ fontWeight: 500, color: 'white', fontSize: 13 }}>{row.user}</div>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>{row.userId}</div>
+                      <div style={{ fontWeight: 500, color: 'white', fontSize: 13 }}>{row.user_id}</div>
                     </div>
                   </div>
                 </Td>
@@ -337,35 +316,37 @@ const AlertsTab = () => {
                     display: 'block', overflow: 'hidden', textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap', fontStyle: 'italic', fontSize: 12,
                     color: 'rgba(255,255,255,0.5)',
-                  }}>{row.maskedPrompt}</span>
+                  }}>{row.masked_prompt || '—'}</span>
                 </Td>
-                <Td><Badge text={row.category} colors={{ bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }} /></Td>
+                <Td><Badge text={row.category || row.alert_type || '—'} colors={{ bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }} /></Td>
                 <Td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{
                       width: 8, height: 8, borderRadius: '50%',
-                      background: row.riskScore >= 90 ? '#f87171' : row.riskScore >= 70 ? '#fb923c' : '#fbbf24',
+                      background: (row.risk_score ?? 0) >= 90 ? '#f87171' : (row.risk_score ?? 0) >= 70 ? '#fb923c' : '#fbbf24',
                     }} />
-                    <span style={{ fontWeight: 700, color: 'white' }}>{row.riskScore}</span>
+                    <span style={{ fontWeight: 700, color: 'white' }}>{row.risk_score ?? '—'}</span>
                   </div>
                 </Td>
-                <Td><ActionBadge action={row.action} /></Td>
+                <Td><ActionBadge action={row.action || 'block'} /></Td>
                 <Td>
                   <button
                     onClick={() => toggleReviewed(row.id)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 5,
-                      background: row.reviewed ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)',
-                      border: `1px solid ${row.reviewed ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`,
-                      color: row.reviewed ? '#4ade80' : 'rgba(255,255,255,0.35)',
+                      background: (row.reviewed || row.is_reviewed) ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)',
+                      border: `1px solid ${(row.reviewed || row.is_reviewed) ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                      color: (row.reviewed || row.is_reviewed) ? '#4ade80' : 'rgba(255,255,255,0.35)',
                       borderRadius: 6, padding: '4px 10px', cursor: 'pointer',
                       fontSize: 12, fontFamily: 'DM Sans, sans-serif', fontWeight: 500,
                     }}
                   >
-                    {row.reviewed ? <><CheckIcon /> Reviewed</> : <><ClockIcon /> Pending</>}
+                    {(row.reviewed || row.is_reviewed) ? <><CheckIcon /> Reviewed</> : <><ClockIcon /> Pending</>}
                   </button>
                 </Td>
-                <Td style={{ color: 'rgba(255,255,255,0.35)', whiteSpace: 'nowrap' }}>{row.time}</Td>
+                <Td style={{ color: 'rgba(255,255,255,0.35)', whiteSpace: 'nowrap' }}>
+                  {row.timestamp ? new Date(row.timestamp).toLocaleTimeString() : '—'}
+                </Td>
               </tr>
             ))}
           </tbody>
@@ -390,16 +371,21 @@ const AlertsTab = () => {
 
 /* Users */
 const UsersTab = () => {
-  const [users, setUsers] = useState(MOCK_USERS);
+  const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
 
-  const toggleActive = (id) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, isActive: !u.isActive } : u));
-    // Gerçek API: PATCH /admin/users/:id → { is_active: !current }
+  useEffect(() => {
+    api.get('/admin/users').then(r => setUsers(r.data.users || [])).catch(() => {});
+  }, []);
+
+  const toggleActive = (id, currentState) => {
+    api.patch(`/admin/users/${id}`, null, { params: { is_active: !currentState } })
+      .then(() => setUsers(prev => prev.map(u => u.id === id ? { ...u, is_active: !u.is_active } : u)))
+      .catch(() => {});
   };
 
   const filtered = users.filter(u =>
-    u.name.toLowerCase().includes(search.toLowerCase()) ||
+    !search ||
     u.email.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -433,56 +419,50 @@ const UsersTab = () => {
           <thead>
             <tr>
               <Th>User</Th>
-              <Th>Email</Th>
-              <Th>Alerts</Th>
-              <Th>Joined</Th>
+              <Th>Role</Th>
+              <Th>Mode</Th>
               <Th>Status</Th>
               <Th>Access</Th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map(u => (
+            {filtered.length === 0 ? (
+              <tr><Td colSpan={5} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: 24 }}>No users found.</Td></tr>
+            ) : filtered.map(u => (
               <tr key={u.id}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 <Td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <UserAvatar initials={u.initials} />
+                    <UserAvatar initials={u.email.slice(0, 2).toUpperCase()} />
                     <div>
-                      <div style={{ fontWeight: 500, color: 'white', fontSize: 13 }}>{u.name}</div>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>{u.id}</div>
+                      <div style={{ fontWeight: 500, color: 'white', fontSize: 13 }}>{u.email}</div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>#{u.id}</div>
                     </div>
                   </div>
                 </Td>
-                <Td style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{u.email}</Td>
-                <Td>
-                  <span style={{
-                    fontWeight: 700,
-                    color: u.alerts > 3 ? '#f87171' : u.alerts > 0 ? '#fbbf24' : '#4ade80',
-                  }}>{u.alerts}</span>
-                </Td>
-                <Td style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>{u.joined}</Td>
+                <Td style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{u.role}</Td>
+                <Td style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{u.user_mode}</Td>
                 <Td>
                   <span style={{
                     fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6,
-                    background: u.isActive ? 'rgba(34,197,94,0.1)' : 'rgba(107,114,128,0.15)',
-                    border: `1px solid ${u.isActive ? 'rgba(34,197,94,0.3)' : 'rgba(107,114,128,0.3)'}`,
-                    color: u.isActive ? '#4ade80' : '#6b7280',
-                  }}>{u.isActive ? 'Active' : 'Inactive'}</span>
+                    background: u.is_active ? 'rgba(34,197,94,0.1)' : 'rgba(107,114,128,0.15)',
+                    border: `1px solid ${u.is_active ? 'rgba(34,197,94,0.3)' : 'rgba(107,114,128,0.3)'}`,
+                    color: u.is_active ? '#4ade80' : '#6b7280',
+                  }}>{u.is_active ? 'Active' : 'Inactive'}</span>
                 </Td>
                 <Td>
                   <button
-                    onClick={() => toggleActive(u.id)}
+                    onClick={() => toggleActive(u.id, u.is_active)}
                     style={{
                       padding: '5px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                      background: u.isActive
-                        ? 'rgba(220,38,38,0.15)' : 'rgba(34,197,94,0.15)',
-                      color: u.isActive ? '#f87171' : '#4ade80',
+                      background: u.is_active ? 'rgba(220,38,38,0.15)' : 'rgba(34,197,94,0.15)',
+                      color: u.is_active ? '#f87171' : '#4ade80',
                       fontSize: 12, fontFamily: 'DM Sans, sans-serif', fontWeight: 600,
                       transition: 'all 0.2s',
                     }}
                   >
-                    {u.isActive ? 'Revoke Access' : 'Grant Access'}
+                    {u.is_active ? 'Revoke Access' : 'Grant Access'}
                   </button>
                 </Td>
               </tr>
@@ -497,9 +477,14 @@ const UsersTab = () => {
 /* Logs */
 const LogsTab = () => {
   const [actionFilter, setActionFilter] = useState('all');
+  const [logs, setLogs] = useState([]);
 
-  const filtered = MOCK_LOGS.filter(l =>
-    actionFilter === 'all' || l.finalAction === actionFilter
+  useEffect(() => {
+    api.get('/admin/logs').then(r => setLogs(r.data.logs || [])).catch(() => {});
+  }, []);
+
+  const filtered = logs.filter(l =>
+    actionFilter === 'all' || l.final_action === actionFilter
   );
 
   return (
@@ -540,24 +525,24 @@ const LogsTab = () => {
             </tr>
           </thead>
           <tbody>
-            {filtered.map(log => (
+            {filtered.length === 0 ? (
+              <tr><Td colSpan={7} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: 24 }}>No logs yet.</Td></tr>
+            ) : filtered.map(log => (
               <tr key={log.id}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 <Td style={{ fontFamily: 'monospace', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>{log.id}</Td>
-                <Td style={{ fontWeight: 500, color: 'white' }}>{log.user}</Td>
+                <Td style={{ fontWeight: 500, color: 'white' }}>{log.user_id}</Td>
                 <Td style={{ maxWidth: 220 }}>
                   <span style={{
                     display: 'block', overflow: 'hidden', textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap', fontStyle: 'italic', fontSize: 12,
                     color: 'rgba(255,255,255,0.45)',
-                  }}>{log.maskedPrompt}</span>
+                  }}>{log.masked_prompt}</span>
                 </Td>
-                <Td><ActionBadge action={log.finalAction} /></Td>
-                <Td><RiskBadge level={log.riskLevel} /></Td>
-                <Td>
-                  <span style={{ fontWeight: 700, color: 'white' }}>{log.riskScore}</span>
-                </Td>
+                <Td><ActionBadge action={log.final_action} /></Td>
+                <Td><RiskBadge level={log.risk_level || 'low'} /></Td>
+                <Td><span style={{ fontWeight: 700, color: 'white' }}>{log.risk_score}</span></Td>
                 <Td style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>
                   {log.timestamp}
                 </Td>
@@ -570,8 +555,239 @@ const LogsTab = () => {
   );
 };
 
+/* ─── Policy Sekmesi ─────────────────────────────────────────── */
+const UploadIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="16 16 12 12 8 16" /><line x1="12" y1="12" x2="12" y2="21" />
+    <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" />
+  </svg>
+);
+const FileIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+  </svg>
+);
+
+const PolicyTab = () => {
+  const [policy, setPolicy]       = useState(null);
+  const [loading, setLoading]     = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver]   = useState(false);
+  const [message, setMessage]     = useState(null); // { type: 'success'|'error', text }
+  const fileInputRef = React.useRef();
+
+  const fetchPolicy = () => {
+    setLoading(true);
+    api.get('/admin/policy')
+      .then(r => setPolicy(r.data))
+      .catch(() => setPolicy({ has_policy: false }))
+      .finally(() => setLoading(false));
+  };
+
+  React.useEffect(() => { fetchPolicy(); }, []);
+
+  const uploadFile = async (file) => {
+    if (!file) return;
+    const allowed = ['application/pdf', 'text/plain',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowed.includes(file.type) && !file.name.match(/\.(pdf|txt|docx)$/i)) {
+      setMessage({ type: 'error', text: 'Yalnızca PDF, TXT veya DOCX yükleyebilirsiniz.' });
+      return;
+    }
+    setUploading(true);
+    setMessage(null);
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const r = await api.post('/admin/policy/upload', form, {
+        headers: { 'Content-Type': undefined },
+      });
+      setMessage({
+        type: 'success',
+        text: `Politika başarıyla yüklendi. ${r.data.categories_count} kategori üretildi: ${r.data.categories.join(', ')}`,
+      });
+      fetchPolicy();
+    } catch (e) {
+      const detail = e.response?.data?.detail;
+      const errorText = typeof detail === 'string' ? detail
+                      : Array.isArray(detail) ? detail.map(d => d.msg).join(', ')
+                      : e.message || 'Yükleme başarısız.';
+      setMessage({ type: 'error', text: errorText });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault(); setDragOver(false);
+    uploadFile(e.dataTransfer.files[0]);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <div>
+        <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: 26, fontWeight: 800, color: 'white', marginBottom: 4 }}>Ethics Policy</h1>
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>
+          Kurumunuza özgü etik politika dosyasını yükleyin. Yüklenen dosya yapay zeka tarafından analiz edilerek otomatik kural seti oluşturulur.
+        </p>
+      </div>
+
+      {/* Mevcut politika durumu */}
+      {!loading && policy?.has_policy && (
+        <div style={{
+          background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)',
+          borderRadius: 14, padding: '18px 22px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <span style={{ color: '#4ade80' }}><FileIcon /></span>
+            <span style={{ color: '#4ade80', fontWeight: 700, fontFamily: 'Syne, sans-serif', fontSize: 15 }}>
+              Aktif Politika
+            </span>
+            <span style={{
+              marginLeft: 'auto', fontSize: 11, fontWeight: 700, padding: '2px 9px',
+              background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)',
+              color: '#4ade80', borderRadius: 6,
+            }}>AKTİF</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
+            <div style={{ color: 'rgba(255,255,255,0.6)' }}>
+              <span style={{ color: 'rgba(255,255,255,0.35)' }}>Dosya: </span>
+              {policy.policy.file_name}
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.6)' }}>
+              <span style={{ color: 'rgba(255,255,255,0.35)' }}>Yükleme tarihi: </span>
+              {new Date(policy.policy.uploaded_at).toLocaleString('tr-TR')}
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.6)' }}>
+              <span style={{ color: 'rgba(255,255,255,0.35)' }}>Kurum: </span>
+              {policy.policy.institution_name}
+            </div>
+          </div>
+          {/* Kategoriler */}
+          {policy.policy.categories?.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.8px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', marginBottom: 10 }}>
+                Üretilen Kategoriler ({policy.policy.categories.length})
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {policy.policy.categories.map((cat, i) => (
+                  <div key={i} style={{
+                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+                    borderRadius: 10, padding: '12px 14px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{
+                        fontFamily: 'monospace', fontSize: 12, fontWeight: 700,
+                        color: '#a78bfa', background: 'rgba(124,58,237,0.12)',
+                        border: '1px solid rgba(124,58,237,0.25)', padding: '2px 8px', borderRadius: 5,
+                      }}>{cat.name}</span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5,
+                        background: cat.risk_level === 'critical' ? 'rgba(220,38,38,0.15)' :
+                                    cat.risk_level === 'high'     ? 'rgba(249,115,22,0.15)' :
+                                    cat.risk_level === 'medium'   ? 'rgba(234,179,8,0.12)'  : 'rgba(107,114,128,0.15)',
+                        color: cat.risk_level === 'critical' ? '#f87171' :
+                               cat.risk_level === 'high'     ? '#fb923c' :
+                               cat.risk_level === 'medium'   ? '#fbbf24' : '#9ca3af',
+                        border: `1px solid ${cat.risk_level === 'critical' ? 'rgba(220,38,38,0.3)' :
+                                             cat.risk_level === 'high'     ? 'rgba(249,115,22,0.3)' :
+                                             cat.risk_level === 'medium'   ? 'rgba(234,179,8,0.3)'  : 'rgba(107,114,128,0.3)'}`,
+                      }}>{(cat.risk_level || 'low').toUpperCase()}</span>
+                      <span style={{ marginLeft: 'auto', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
+                        Skor: {cat.risk_score} · {cat.recommended_action}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5, marginBottom: 6 }}>{cat.description}</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {(cat.keywords || []).slice(0, 6).map((kw, j) => (
+                        <span key={j} style={{
+                          fontSize: 11, fontFamily: 'monospace', padding: '2px 7px', borderRadius: 4,
+                          background: 'rgba(37,99,235,0.1)', border: '1px solid rgba(37,99,235,0.2)',
+                          color: '#60a5fa',
+                        }}>{kw}</span>
+                      ))}
+                      {(cat.keywords || []).length > 6 && (
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
+                          +{cat.keywords.length - 6} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mesaj */}
+      {message && (
+        <div style={{
+          background: message.type === 'success' ? 'rgba(34,197,94,0.08)' : 'rgba(220,38,38,0.08)',
+          border: `1px solid ${message.type === 'success' ? 'rgba(34,197,94,0.25)' : 'rgba(220,38,38,0.25)'}`,
+          borderRadius: 10, padding: '12px 16px',
+          color: message.type === 'success' ? '#4ade80' : '#f87171',
+          fontSize: 13, lineHeight: 1.5,
+        }}>{message.text}</div>
+      )}
+
+      {/* Dosya yükleme alanı */}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+        onClick={() => !uploading && fileInputRef.current?.click()}
+        style={{
+          border: `2px dashed ${dragOver ? 'rgba(124,58,237,0.6)' : 'rgba(255,255,255,0.12)'}`,
+          borderRadius: 16,
+          padding: '48px 24px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+          cursor: uploading ? 'not-allowed' : 'pointer',
+          background: dragOver ? 'rgba(124,58,237,0.05)' : 'rgba(255,255,255,0.02)',
+          transition: 'all 0.2s',
+          opacity: uploading ? 0.6 : 1,
+        }}
+      >
+        <div style={{
+          width: 52, height: 52, borderRadius: 14,
+          background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#a78bfa',
+        }}>
+          <UploadIcon />
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 15, color: 'white', marginBottom: 6 }}>
+            {uploading ? 'Analiz ediliyor...' : 'Politika dosyasını sürükle veya tıkla'}
+          </div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
+            PDF, DOCX veya TXT · Maks. 10 MB
+          </div>
+          {uploading && (
+            <div style={{ marginTop: 10, fontSize: 12, color: '#a78bfa' }}>
+              Gemini politikayı analiz ediyor, lütfen bekleyin...
+            </div>
+          )}
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.txt,.docx"
+          style={{ display: 'none' }}
+          onChange={e => uploadFile(e.target.files[0])}
+        />
+      </div>
+
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', lineHeight: 1.7 }}>
+        Yüklenen dosya yapay zeka tarafından analiz edilir ve kurumunuza özgü etik ihlal kategorileri otomatik olarak oluşturulur.
+        Yeni bir dosya yüklendiğinde önceki politika devre dışı kalır. Ham politika metni sunucuda saklanır ancak kullanıcı promptlarıyla paylaşılmaz.
+      </div>
+    </div>
+  );
+};
+
 /* ─── Ana Bileşen ─────────────────────────────────────────────── */
-const TABS = ['Overview', 'Alerts', 'Users', 'Logs'];
+const TABS = ['Overview', 'Alerts', 'Users', 'Logs', 'Policy'];
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -715,7 +931,22 @@ const Admin = () => {
           </div>
 
           <div className="navbar-right" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="lecturer-badge">Lecturer</span>
+            <button
+              onClick={() => navigate('/chat')}
+              style={{
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                color: 'rgba(255,255,255,0.55)', borderRadius: 8, padding: '5px 12px',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+            >
+              Go to Chat
+            </button>
+            <span className="lecturer-badge">
+              {user?.role === 'corporate_admin' ? 'Admin' : user?.role || 'Lecturer'}
+            </span>
             <div className="admin-avatar">{initials}</div>
             <button className="admin-logout-btn" onClick={handleLogout} title="Logout">
               <LogoutIcon />
@@ -729,6 +960,7 @@ const Admin = () => {
           {activeTab === 'Alerts'   && <AlertsTab />}
           {activeTab === 'Users'    && <UsersTab />}
           {activeTab === 'Logs'     && <LogsTab />}
+          {activeTab === 'Policy'   && <PolicyTab />}
         </div>
       </div>
     </>

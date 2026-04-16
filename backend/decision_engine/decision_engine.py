@@ -22,28 +22,52 @@ def decide_action(payload: dict, pii_result: dict, ethics_result: dict) -> dict:
     log_required = False
     block_reason = None
 
-    # 1️⃣ BLOCK en güçlü karar
-    if pii_result.get("recommended_action") == "block":
+    user_message = ""
+
+    pii_action = pii_result.get("recommended_action", "allow")
+    ethics_action = ethics_result.get("recommended_action", "allow")
+
+    # 1️⃣ BLOCK en güçlü karar — PII veya Ethics kaynaklı
+    if pii_action == "block":
         final_action = "block"
         prompt_to_send = None
         log_required = True
         block_reason = "Sensitive data detected"
+        user_message = "Bu mesaj, kritik düzeyde hassas veri içerdiği için engellendi ve sisteme iletilmedi."
 
-    # 2️⃣ Ethics warn_and_log
-    elif ethics_result.get("recommended_action") == "warn_and_log":
-        final_action = "warn_and_log"
+    elif ethics_action == "block":
+        final_action = "block"
+        prompt_to_send = None
         log_required = True
+        block_reason = "Ethics policy violation"
+        user_message = "Bu mesaj, kurumsal etik politikasını ihlal ettiği için engellendi."
 
-    # 3️⃣ PII mask_and_allow
-    elif pii_result.get("recommended_action") == "mask_and_allow":
+    # 2️⃣ Bölüm 7.6 Kombinasyon: PII mask + Ethics warn_and_log
+    # → final_action = warn_and_log, prompt maskelenmiş halde gönderilir
+    elif pii_action == "mask_and_allow" and ethics_action == "warn_and_log":
+        final_action = "warn_and_log"
+        prompt_to_send = pii_result.get("masked_prompt", prompt)
+        log_required = True
+        user_message = "Mesajınızdaki kişisel veriler maskelendi ve etik politika ihlali nedeniyle kayıt altına alındı."
+
+    # 3️⃣ Yalnızca PII maskeleme
+    elif pii_action == "mask_and_allow":
         final_action = "mask_and_allow"
         prompt_to_send = pii_result.get("masked_prompt", prompt)
         log_required = True
+        user_message = "Mesajınızdaki kişisel veriler maskelenerek sisteme iletildi."
 
-    # 4️⃣ warn
-    elif ethics_result.get("recommended_action") == "warn":
-        final_action = "warn"
+    # 4️⃣ Ethics warn_and_log
+    elif ethics_action == "warn_and_log":
+        final_action = "warn_and_log"
         log_required = True
+        user_message = "Mesajınız etik politika ihlali riski taşıdığı için güvenlik kaydına alındı."
+
+    # 5️⃣ Ethics warn — sadece UI uyarısı, DB'ye log yazılmaz
+    elif ethics_action == "warn":
+        final_action = "warn"
+        log_required = False
+        user_message = "Mesajınız potansiyel etik risk içeriyor. Lütfen içeriği gözden geçirin."
 
     # Final sonuç
     return {
@@ -57,7 +81,7 @@ def decide_action(payload: dict, pii_result: dict, ethics_result: dict) -> dict:
             ethics_result.get("risk_score", 0)
         ),
         "prompt_to_send": prompt_to_send,
-        "user_message": "Decision processed by security gateway.",
+        "user_message": user_message,
         "log_required": log_required,
         "block_reason": block_reason
     }

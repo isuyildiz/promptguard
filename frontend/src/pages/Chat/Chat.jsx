@@ -67,13 +67,6 @@ const BotIcon = () => (
   </svg>
 );
 
-/* ─── Geçmiş konuşmalar (mock) ───────────────────────────────── */
-const HISTORY = [
-  { id: 1, title: 'Privacy Inquiry', time: '10:42 AM', active: true },
-  { id: 2, title: 'Financial Summary', time: 'Yesterday' },
-  { id: 3, title: 'Customer Support Bot', time: 'Mon' },
-  { id: 4, title: 'System Policy Check', time: 'Sun' },
-];
 
 /* ─── PII Uyarı Kutusu ───────────────────────────────────────── */
 const PiiWarningBox = ({ entities = [], riskScore = 0, maskedPrompt }) => (
@@ -116,7 +109,7 @@ const PiiWarningBox = ({ entities = [], riskScore = 0, maskedPrompt }) => (
 );
 
 /* ─── Warn Bandı ─────────────────────────────────────────────── */
-const WarnBanner = ({ message }) => (
+const WarnBanner = ({ message, riskScore }) => (
   <div style={{
     display: 'flex', alignItems: 'center', gap: 8,
     background: 'rgba(124,58,237,0.08)',
@@ -124,9 +117,48 @@ const WarnBanner = ({ message }) => (
     borderRadius: 10, padding: '9px 14px', margin: '6px 0',
   }}>
     <span style={{ color: '#a78bfa', display: 'flex', flexShrink: 0 }}><WarnIcon /></span>
-    <span style={{ color: 'rgba(167,139,250,0.9)', fontSize: 12, fontWeight: 500, letterSpacing: '0.3px' }}>
+    <span style={{ color: 'rgba(167,139,250,0.9)', fontSize: 12, fontWeight: 500, letterSpacing: '0.3px', flex: 1 }}>
       {message || 'Activity has been logged due to policy risk.'}
     </span>
+    {riskScore != null && (
+      <span style={{
+        background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.4)',
+        color: '#a78bfa', fontSize: 10, fontWeight: 700, letterSpacing: '0.8px',
+        padding: '2px 8px', borderRadius: 6, flexShrink: 0,
+      }}>
+        RISK: {riskScore}
+      </span>
+    )}
+  </div>
+);
+
+/* ─── Mask Bandı ─────────────────────────────────────────────── */
+const MaskBanner = ({ message, riskScore }) => (
+  <div style={{
+    background: 'rgba(217,119,6,0.08)',
+    border: '1px solid rgba(217,119,6,0.25)',
+    borderRadius: 10, padding: '10px 14px', margin: '6px 0',
+  }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: message ? 6 : 0 }}>
+      <span style={{ color: '#f59e0b', display: 'flex', flexShrink: 0 }}><ShieldWarnIcon /></span>
+      <span style={{ color: '#fbbf24', fontSize: 12, fontWeight: 700, letterSpacing: '0.3px', flex: 1 }}>
+        Verileriniz maskelendi — gizlilik kuralları uygulandı.
+      </span>
+      {riskScore != null && (
+        <span style={{
+          background: 'rgba(217,119,6,0.2)', border: '1px solid rgba(217,119,6,0.4)',
+          color: '#fcd34d', fontSize: 10, fontWeight: 700, letterSpacing: '0.8px',
+          padding: '2px 8px', borderRadius: 6, flexShrink: 0,
+        }}>
+          RISK: {riskScore}
+        </span>
+      )}
+    </div>
+    {message && (
+      <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, lineHeight: 1.5, paddingLeft: 24 }}>
+        {message}
+      </p>
+    )}
   </div>
 );
 
@@ -218,7 +250,14 @@ const MessageBubble = ({ msg }) => {
       {/* Warn bandı */}
       {(msg.finalAction === 'warn' || msg.finalAction === 'warn_and_log') && (
         <div style={{ width: '100%', maxWidth: '85%', alignSelf: isUser ? 'flex-end' : 'flex-start' }}>
-          <WarnBanner message={msg.userMessage} />
+          <WarnBanner message={msg.userMessage} riskScore={msg.riskScore} />
+        </div>
+      )}
+
+      {/* Mask bandı */}
+      {msg.finalAction === 'mask_and_allow' && (
+        <div style={{ width: '100%', maxWidth: '85%', alignSelf: 'flex-end' }}>
+          <MaskBanner message={msg.userMessage} riskScore={msg.riskScore} />
         </div>
       )}
 
@@ -275,19 +314,71 @@ const EmptyState = () => (
   </div>
 );
 
+/* ─── Admin Panel İkonu ──────────────────────────────────────── */
+const AdminIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <polyline points="9 12 11 14 15 10" />
+  </svg>
+);
+
+/* ─── localStorage yardımcıları (kullanıcıya özgü anahtarlar) ── */
+function lsSessionsKey(userId) { return `pg_chat_sessions_${userId}`; }
+function lsActiveKey(userId)   { return `pg_chat_active_${userId}`; }
+
+function loadSessions(userId) {
+  try { return JSON.parse(localStorage.getItem(lsSessionsKey(userId))) || []; }
+  catch { return []; }
+}
+
+function saveSessions(userId, sessions) {
+  try { localStorage.setItem(lsSessionsKey(userId), JSON.stringify(sessions)); }
+  catch {}
+}
+
+function loadActiveSession(userId) {
+  try { return JSON.parse(localStorage.getItem(lsActiveKey(userId))) || null; }
+  catch { return null; }
+}
+
+function saveActiveSession(userId, session) {
+  try {
+    if (session) localStorage.setItem(lsActiveKey(userId), JSON.stringify(session));
+    else localStorage.removeItem(lsActiveKey(userId));
+  } catch {}
+}
+
 /* ─── Ana Bileşen ─────────────────────────────────────────────── */
 const Chat = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [prompt, setPrompt] = useState('');
-  const [messages, setMessages] = useState([]);
+
+  // user.userId JWT'den geliyor (AuthContext: decoded.sub)
+  const userId = user?.userId || 'guest';
+
+  // Aktif oturum: bu kullanıcıya ait localStorage'dan başlat
+  const [activeSession, setActiveSession] = useState(() => loadActiveSession(userId));
+  const [messages, setMessages] = useState(() => loadActiveSession(userId)?.messages || []);
+  const [sessionId, setSessionId] = useState(() => loadActiveSession(userId)?.id || ('s' + Math.random().toString(36).slice(2, 8)));
+
+  // Kaydedilmiş geçmiş: bu kullanıcıya ait localStorage'dan başlat
+  const [sessions, setSessions] = useState(() => loadSessions(userId));
+
   const [loading, setLoading] = useState(false);
-  const [sessionId] = useState(() => 's' + Math.random().toString(36).slice(2, 8));
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
 
   const userMode = user?.mode || 'individual';
   const userName = user?.email?.split('@')[0] || 'User';
+  const isAdmin = user?.role === 'corporate_admin';
+
+  // Mesajlar değişince bu kullanıcının localStorage'ını güncelle
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const active = { id: sessionId, messages };
+    saveActiveSession(userId, active);
+  }, [messages, sessionId, userId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -298,6 +389,43 @@ const Chat = () => {
     setPrompt(e.target.value);
     e.target.style.height = 'auto';
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+  };
+
+  const persistSession = (currentMessages, sid, currentSessions) => {
+    if (currentMessages.length === 0) return currentSessions;
+    const title = currentMessages[0].content.slice(0, 32) + (currentMessages[0].content.length > 32 ? '…' : '');
+    const time = currentMessages[0].time || '';
+    const entry = { id: sid, title, time, messages: currentMessages };
+    const existing = currentSessions.findIndex(s => s.id === sid);
+    let next;
+    if (existing >= 0) {
+      next = [...currentSessions];
+      next[existing] = entry;
+    } else {
+      next = [entry, ...currentSessions];
+    }
+    saveSessions(userId, next);
+    return next;
+  };
+
+  const handleNewChat = () => {
+    setSessions(prev => persistSession(messages, sessionId, prev));
+    const newSid = 's' + Math.random().toString(36).slice(2, 8);
+    setMessages([]);
+    setSessionId(newSid);
+    setActiveSession(null);
+    saveActiveSession(userId, null);
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+  };
+
+  const handleLoadSession = (session) => {
+    // Mevcut aktif sohbeti kaydet
+    setSessions(prev => persistSession(messages, sessionId, prev));
+    // Seçilen sohbeti yükle
+    setMessages(session.messages);
+    setSessionId(session.id);
+    setActiveSession(session);
+    saveActiveSession(userId, { id: session.id, messages: session.messages });
   };
 
   const handleSend = async (e) => {
@@ -312,70 +440,63 @@ const Chat = () => {
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
     try {
-      // Gerçek API çağrısı (backend hazır olduğunda aktif edilecek):
-      /*
       const response = await api.post('/send', {
-        prompt: prompt,
+        prompt,
         session_id: sessionId,
       });
-      const { llm_response, final_action, user_message, final_risk_score, block_reason } = response.data;
-      // pii_result ve entities için /analyze sonucunu da işleyebilirsin
-      */
 
-      // Mock response — final_action değerini değiştirerek farklı durumları test edebilirsin:
-      await new Promise(r => setTimeout(r, 1000));
-
-      const mockFinalAction = 'mask_and_allow'; // 'allow' | 'warn' | 'warn_and_log' | 'mask_and_allow' | 'block'
-
-      const mockData = {
-        llm_response: mockFinalAction === 'block'
-          ? null
-          : 'I can certainly help you with your inquiry. How can I assist you today while ensuring your data remains protected?',
-        final_action: mockFinalAction,
-        user_message: mockFinalAction === 'block'
-          ? 'This prompt contains financial data and cannot be sent.'
-          : mockFinalAction.includes('warn')
-          ? 'Activity has been logged due to policy risk.'
-          : 'Sensitive data was masked before sending.',
-        final_risk_score: 88,
-        block_reason: mockFinalAction === 'block' ? 'FINANCIAL_DATA' : null,
-        pii_entities: ['[PERSON_1]', '[ID_NUMBER]'],
-      };
+      const {
+        llm_response,
+        final_action,
+        user_message,
+        final_risk_score,
+        block_reason,
+      } = response.data;
 
       const botTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-      // Kullanıcı mesajına PII / warn / block bilgilerini ekle
+      // Kullanıcı mesajına karar bilgilerini ekle
       setMessages(prev => prev.map((m, i) =>
         i === prev.length - 1
           ? {
               ...m,
-              finalAction: mockData.final_action,
-              userMessage: mockData.user_message,
-              riskScore: mockData.final_risk_score,
-              blockReason: mockData.block_reason,
-              piiEntities: ['mask_and_allow', 'warn_and_log'].includes(mockData.final_action)
-                ? mockData.pii_entities
-                : [],
+              finalAction: final_action,
+              userMessage: user_message,
+              riskScore: final_risk_score,
+              blockReason: block_reason,
+              piiEntities: [],
             }
           : m
       ));
 
       // Bot yanıtını ekle (block değilse)
-      if (mockData.final_action !== 'block' && mockData.llm_response) {
+      if (final_action !== 'block' && llm_response) {
         setMessages(prev => [...prev, {
           type: 'bot',
-          content: mockData.llm_response,
+          content: llm_response,
           time: botTime,
         }]);
       }
     } catch (error) {
       console.error('Mesaj gönderilemedi:', error);
-      const errTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      setMessages(prev => [...prev, {
-        type: 'bot',
-        content: 'Something went wrong. Please try again.',
-        time: errTime,
-      }]);
+      if (error.response?.status === 403) {
+        // Prompt blocked — update user message with block info, no bot reply
+        const detail = error.response.data?.detail || error.response.data || {};
+        const blockReason = detail.block_reason || detail.message || 'Policy violation';
+        const userMsg = detail.user_message || detail.message || '';
+        setMessages(prev => prev.map((m, i) =>
+          i === prev.length - 1
+            ? { ...m, finalAction: 'block', blockReason, userMessage: userMsg, piiEntities: [] }
+            : m
+        ));
+      } else {
+        const errTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        setMessages(prev => [...prev, {
+          type: 'bot',
+          content: 'Something went wrong. Please try again.',
+          time: errTime,
+        }]);
+      }
     } finally {
       setLoading(false);
     }
@@ -389,6 +510,9 @@ const Chat = () => {
   };
 
   const handleLogout = () => {
+    // Aktif sohbeti geçmişe kaydet, active pointer'ı temizle
+    setSessions(prev => persistSession(messages, sessionId, prev));
+    saveActiveSession(userId, null);
     logout();
     navigate('/login');
   };
@@ -663,28 +787,55 @@ const Chat = () => {
           </div>
 
           {/* New Chat */}
-          <button className="new-chat-btn" onClick={() => setMessages([])}>
+          <button className="new-chat-btn" onClick={handleNewChat}>
             <PlusIcon /> New Chat
           </button>
 
           {/* Geçmiş */}
           <div className="history-label">Recent History</div>
           <div className="history-list">
-            {HISTORY.map(item => (
-              <div key={item.id} className={`history-item ${item.active ? 'active' : ''}`}>
-                <ChatIcon />
-                <span className="history-item-title">{item.title}</span>
-                <span className="history-item-time">{item.time}</span>
+            {sessions.length === 0 ? (
+              <div style={{ padding: '12px 10px', color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>
+                No history yet.
+              </div>
+            ) : sessions.map(s => (
+              <div
+                key={s.id}
+                className={`history-item ${activeSession?.id === s.id ? 'active' : ''}`}
+                onClick={() => handleLoadSession(s)}
+              >
+                <span style={{ color: 'inherit', display: 'flex', flexShrink: 0 }}><ChatIcon /></span>
+                <span className="history-item-title">{s.title}</span>
+                <span className="history-item-time">{s.time}</span>
               </div>
             ))}
           </div>
+
+          {/* Admin Panel linki (sadece admin için) */}
+          {isAdmin && (
+            <button
+              onClick={() => navigate('/admin')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                width: '100%', padding: '9px 10px',
+                background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.25)',
+                borderRadius: 10, color: '#a78bfa',
+                fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(124,58,237,0.18)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(124,58,237,0.1)'; }}
+            >
+              <AdminIcon /> Admin Panel
+            </button>
+          )}
 
           {/* Kullanıcı */}
           <div className="sidebar-user">
             <div className="user-avatar">{userName.charAt(0)}</div>
             <div className="user-info">
               <div className="user-name">{userName}</div>
-              <div className="user-role">{userMode === 'institutional' ? 'Institutional User' : 'Standard User'}</div>
+              <div className="user-role">{isAdmin ? 'Admin' : userMode === 'institutional' ? 'Institutional User' : 'Standard User'}</div>
             </div>
             <button className="logout-btn" onClick={handleLogout} title="Logout">
               <LogoutIcon />
