@@ -489,6 +489,7 @@ const AuthPage = () => {
                               placeholder="••••••••"
                               className="input-field"
                               style={{ paddingRight: 40 }}
+                              autoComplete="new-password"
                             />
                             <button type="button" className="eye-btn" onClick={() => setShowPassword(p => !p)}>
                               <EyeIcon show={showPassword} />
@@ -579,6 +580,7 @@ const AuthPage = () => {
                                 placeholder="••••••••"
                                 className="input-field"
                                 style={{ paddingRight: 40 }}
+                                autoComplete="new-password"
                               />
                               <button type="button" className="eye-btn" onClick={() => setShowPassword(p => !p)}>
                                 <EyeIcon show={showPassword} />
@@ -595,6 +597,7 @@ const AuthPage = () => {
                                 placeholder="••••••••"
                                 className="input-field"
                                 style={{ paddingRight: 40 }}
+                                autoComplete="new-password"
                               />
                               <button type="button" className="eye-btn" onClick={() => setShowConfirm(p => !p)}>
                                 <EyeIcon show={showConfirm} />

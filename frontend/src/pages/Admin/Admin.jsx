@@ -334,12 +334,7 @@ const AlertsTab = () => {
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 <Td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <UserAvatar initials={String(row.user_id || '?').slice(0, 2).toUpperCase()} />
-                    <div>
-                      <div style={{ fontWeight: 500, color: 'white', fontSize: 13 }}>{row.user_id}</div>
-                    </div>
-                  </div>
+                  <UserAvatar initials={String(row.user_id || '?').slice(0, 2).toUpperCase()} />
                 </Td>
                 <Td style={{ maxWidth: 240 }}>
                   <span style={{

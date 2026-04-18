@@ -48,6 +48,7 @@ def _validate_password(password: str) -> None:
     - En az bir büyük harf
     - En az bir küçük harf
     - En az bir rakam
+    - En az bir özel karakter (!@#$%^&* vb.)
     """
     if len(password) < 8:
         raise HTTPException(status_code=400, detail="Şifre en az 8 karakter olmalıdır.")
@@ -57,6 +58,8 @@ def _validate_password(password: str) -> None:
         raise HTTPException(status_code=400, detail="Şifre en az bir küçük harf içermelidir.")
     if not re.search(r'\d', password):
         raise HTTPException(status_code=400, detail="Şifre en az bir rakam içermelidir.")
+    if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?`~]', password):
+        raise HTTPException(status_code=400, detail="Şifre en az bir özel karakter içermelidir (!@#$%^&* vb.).")
 
 
 def create_access_token(data: dict):
