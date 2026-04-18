@@ -1,15 +1,18 @@
+import re
+import os
+from datetime import datetime, timedelta
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from jose import jwt
-from datetime import datetime, timedelta
 from pydantic import BaseModel
-from typing import Optional
+from dotenv import load_dotenv
+
 from app.database import get_db
 from app.models.user import User
 from app.models.institution import Institution
-import os
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -27,6 +30,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 class RegisterRequest(BaseModel):
     email: str
     password: str
+    full_name: Optional[str] = None
     user_mode: str = "individual"
     institution_code: Optional[str] = None
 
@@ -36,6 +40,24 @@ class LoginRequest(BaseModel):
 
 
 # --- Yardımcı fonksiyonlar ---
+
+def _validate_password(password: str) -> None:
+    """
+    Şifre karmaşıklık kuralları:
+    - En az 8 karakter
+    - En az bir büyük harf
+    - En az bir küçük harf
+    - En az bir rakam
+    """
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Şifre en az 8 karakter olmalıdır.")
+    if not re.search(r'[A-Z]', password):
+        raise HTTPException(status_code=400, detail="Şifre en az bir büyük harf içermelidir.")
+    if not re.search(r'[a-z]', password):
+        raise HTTPException(status_code=400, detail="Şifre en az bir küçük harf içermelidir.")
+    if not re.search(r'\d', password):
+        raise HTTPException(status_code=400, detail="Şifre en az bir rakam içermelidir.")
+
 
 def create_access_token(data: dict):
     to_encode = data.copy()
@@ -48,6 +70,9 @@ def create_access_token(data: dict):
 
 @router.post("/register")
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
+    # Şifre karmaşıklık kurallarını kontrol et
+    _validate_password(body.password)
+
     # Aynı email ile kayıt var mı kontrol et
     existing = db.query(User).filter(User.email == body.email).first()
     if existing:
@@ -73,6 +98,7 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     # Kullanıcıyı kaydet
     new_user = User(
         email=body.email,
+        full_name=body.full_name,
         hashed_password=hashed,
         role=role,
         user_mode=body.user_mode,

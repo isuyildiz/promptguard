@@ -152,14 +152,29 @@ const UserAvatar = ({ initials }) => (
 
 /* ─── Tab İçerikleri ─────────────────────────────────────────── */
 
+/* Loading Spinner */
+const Spinner = () => (
+  <div style={{ textAlign: 'center', padding: 28, color: 'rgba(255,255,255,0.2)', fontSize: 13 }}>
+    Loading...
+  </div>
+);
+
 /* Overview */
 const OverviewTab = () => {
   const [stats, setStats] = useState(null);
   const [alerts, setAlerts] = useState([]);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [loadingAlerts, setLoadingAlerts] = useState(true);
 
   useEffect(() => {
-    api.get('/admin/stats').then(r => setStats(r.data)).catch(() => {});
-    api.get('/admin/alerts').then(r => setAlerts(r.data.alerts || [])).catch(() => {});
+    api.get('/admin/stats')
+      .then(r => setStats(r.data))
+      .catch(() => {})
+      .finally(() => setLoadingStats(false));
+    api.get('/admin/alerts')
+      .then(r => setAlerts(r.data.alerts || []))
+      .catch(() => {})
+      .finally(() => setLoadingAlerts(false));
   }, []);
 
   return (
@@ -194,7 +209,9 @@ const OverviewTab = () => {
               </tr>
             </thead>
             <tbody>
-              {alerts.length === 0 ? (
+              {loadingAlerts ? (
+                <tr><td colSpan={5}><Spinner /></td></tr>
+              ) : alerts.length === 0 ? (
                 <tr><Td colSpan={5} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: 24 }}>No alerts yet.</Td></tr>
               ) : alerts.slice(0, 5).map(row => (
                 <tr key={row.id} style={{ transition: 'background 0.15s' }}
@@ -225,9 +242,13 @@ const AlertsTab = () => {
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState('all');
   const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/admin/alerts').then(r => setAlerts(r.data.alerts || [])).catch(() => {});
+    api.get('/admin/alerts')
+      .then(r => setAlerts(r.data.alerts || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered = alerts.filter(a => {
@@ -238,8 +259,15 @@ const AlertsTab = () => {
     return matchSearch && matchRisk;
   });
 
-  const toggleReviewed = (id) => {
-    setAlerts(prev => prev.map(a => a.id === id ? { ...a, reviewed: !a.reviewed } : a));
+  const toggleReviewed = (id, currentReviewed) => {
+    const newVal = !currentReviewed;
+    api.patch(`/admin/alerts/${id}/review`, null, { params: { is_reviewed: newVal } })
+      .then(res => setAlerts(prev => prev.map(a =>
+        a.id === id
+          ? { ...a, is_reviewed: newVal, reviewed: newVal, reviewed_by: res.data.reviewed_by ?? null }
+          : a
+      )))
+      .catch(err => console.error('Review toggle failed:', err?.response?.data || err.message));
   };
 
   return (
@@ -297,7 +325,9 @@ const AlertsTab = () => {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {loading ? (
+              <tr><td colSpan={7}><Spinner /></td></tr>
+            ) : filtered.length === 0 ? (
               <tr><Td colSpan={7} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: 24 }}>No alerts found.</Td></tr>
             ) : filtered.map(row => (
               <tr key={row.id}
@@ -331,7 +361,7 @@ const AlertsTab = () => {
                 <Td><ActionBadge action={row.action || 'block'} /></Td>
                 <Td>
                   <button
-                    onClick={() => toggleReviewed(row.id)}
+                    onClick={() => toggleReviewed(row.id, row.is_reviewed || row.reviewed)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 5,
                       background: (row.reviewed || row.is_reviewed) ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)',
@@ -434,9 +464,12 @@ const UsersTab = () => {
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 <Td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <UserAvatar initials={u.email.slice(0, 2).toUpperCase()} />
+                    <UserAvatar initials={(u.full_name || u.email).slice(0, 2).toUpperCase()} />
                     <div>
-                      <div style={{ fontWeight: 500, color: 'white', fontSize: 13 }}>{u.email}</div>
+                      {u.full_name && (
+                        <div style={{ fontWeight: 600, color: 'white', fontSize: 13 }}>{u.full_name}</div>
+                      )}
+                      <div style={{ fontWeight: u.full_name ? 400 : 500, color: u.full_name ? 'rgba(255,255,255,0.5)' : 'white', fontSize: 13 }}>{u.email}</div>
                       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>#{u.id}</div>
                     </div>
                   </div>
@@ -478,9 +511,13 @@ const UsersTab = () => {
 const LogsTab = () => {
   const [actionFilter, setActionFilter] = useState('all');
   const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/admin/logs').then(r => setLogs(r.data.logs || [])).catch(() => {});
+    api.get('/admin/logs')
+      .then(r => setLogs(r.data.logs || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered = logs.filter(l =>
@@ -504,7 +541,7 @@ const LogsTab = () => {
           cursor: 'pointer', width: 'fit-content',
         }}
       >
-        {['all', 'allow', 'warn', 'warn_and_log', 'mask_and_allow', 'block'].map(v => (
+        {['all', 'warn_and_log', 'mask_and_allow', 'block'].map(v => (
           <option key={v} value={v} style={{ background: '#1a1a2e' }}>
             {v === 'all' ? 'All Actions' : v}
           </option>
@@ -525,7 +562,9 @@ const LogsTab = () => {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {loading ? (
+              <tr><td colSpan={7}><Spinner /></td></tr>
+            ) : filtered.length === 0 ? (
               <tr><Td colSpan={7} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: 24 }}>No logs yet.</Td></tr>
             ) : filtered.map(log => (
               <tr key={log.id}
@@ -573,8 +612,53 @@ const PolicyTab = () => {
   const [loading, setLoading]     = useState(true);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver]   = useState(false);
-  const [message, setMessage]     = useState(null); // { type: 'success'|'error', text }
+  const [message, setMessage]           = useState(null); // { type: 'success'|'error', text }
+  const [expandedCats, setExpandedCats] = useState({});
+  const [showAddRule, setShowAddRule]   = useState(false);
+  const [addingRule, setAddingRule]     = useState(false);
+  const [ruleForm, setRuleForm]         = useState({
+    name: '', description: '', keywords: '', risk_level: 'high', risk_score: 70, recommended_action: 'warn_and_log',
+  });
   const fileInputRef = React.useRef();
+
+  const toggleCatExpand = (i) => setExpandedCats(prev => ({ ...prev, [i]: !prev[i] }));
+
+  const submitRule = async () => {
+    if (!ruleForm.name.trim() || !ruleForm.keywords.trim()) {
+      setMessage({ type: 'error', text: 'Kategori adı ve en az bir anahtar kelime zorunludur.' });
+      return;
+    }
+    setAddingRule(true);
+    try {
+      const keywords = ruleForm.keywords.split(',').map(k => k.trim()).filter(Boolean);
+      await api.post('/admin/policy/categories', {
+        name: ruleForm.name.trim().replace(/\s+/g, '_').toLowerCase(),
+        description: ruleForm.description.trim(),
+        keywords,
+        risk_level: ruleForm.risk_level,
+        risk_score: Number(ruleForm.risk_score),
+        recommended_action: ruleForm.recommended_action,
+      });
+      setMessage({ type: 'success', text: 'Kural başarıyla eklendi.' });
+      setShowAddRule(false);
+      setRuleForm({ name: '', description: '', keywords: '', risk_level: 'high', risk_score: 70, recommended_action: 'warn_and_log' });
+      fetchPolicy();
+    } catch (e) {
+      setMessage({ type: 'error', text: e.response?.data?.detail || 'Kural eklenemedi.' });
+    } finally {
+      setAddingRule(false);
+    }
+  };
+
+  const deleteCategory = async (catName) => {
+    if (!window.confirm(`"${catName}" kategorisi silinsin mi?`)) return;
+    try {
+      await api.delete(`/admin/policy/categories/${encodeURIComponent(catName)}`);
+      fetchPolicy();
+    } catch (e) {
+      setMessage({ type: 'error', text: e.response?.data?.detail || 'Kategori silinemedi.' });
+    }
+  };
 
   const fetchPolicy = () => {
     setLoading(true);
@@ -666,9 +750,83 @@ const PolicyTab = () => {
           {/* Kategoriler */}
           {policy.policy.categories?.length > 0 && (
             <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.8px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', marginBottom: 10 }}>
-                Üretilen Kategoriler ({policy.policy.categories.length})
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.8px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>
+                  Kategoriler ({policy.policy.categories.length})
+                </span>
+                <button
+                  onClick={() => setShowAddRule(v => !v)}
+                  style={{
+                    marginLeft: 'auto', fontSize: 11, fontWeight: 700, padding: '4px 12px',
+                    background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)',
+                    color: '#a78bfa', borderRadius: 6, cursor: 'pointer',
+                  }}
+                >
+                  {showAddRule ? 'İptal' : '+ Kural Ekle'}
+                </button>
               </div>
+
+              {/* Manuel Kural Ekleme Formu */}
+              {showAddRule && (
+                <div style={{
+                  background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)',
+                  borderRadius: 12, padding: '16px', marginBottom: 12,
+                  display: 'flex', flexDirection: 'column', gap: 10,
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#a78bfa', marginBottom: 2 }}>Yeni Kural Ekle</div>
+                  {[
+                    { label: 'Kategori Adı (snake_case)', key: 'name', placeholder: 'örn: unauthorized_tool_use' },
+                    { label: 'Açıklama', key: 'description', placeholder: 'Bu kural ne tür ihlalleri kapsar?' },
+                    { label: 'Anahtar Kelimeler (virgülle ayır)', key: 'keywords', placeholder: 'örn: şirketten veri çal, gizli bilgi sızdır' },
+                  ].map(({ label, key, placeholder }) => (
+                    <div key={key}>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>{label}</div>
+                      <input
+                        value={ruleForm[key]}
+                        onChange={e => setRuleForm(f => ({ ...f, [key]: e.target.value }))}
+                        placeholder={placeholder}
+                        style={{
+                          width: '100%', boxSizing: 'border-box',
+                          background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: 8, padding: '7px 10px', color: 'white', fontSize: 12,
+                          outline: 'none', fontFamily: 'DM Sans, sans-serif',
+                        }}
+                      />
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Risk Seviyesi</div>
+                      <select value={ruleForm.risk_level} onChange={e => setRuleForm(f => ({ ...f, risk_level: e.target.value }))}
+                        style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '7px 10px', color: 'white', fontSize: 12, outline: 'none' }}>
+                        {['low', 'medium', 'high', 'critical'].map(v => <option key={v} value={v} style={{ background: '#1a1a2e' }}>{v}</option>)}
+                      </select>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Risk Skoru (0-100)</div>
+                      <input type="number" min="0" max="100" value={ruleForm.risk_score}
+                        onChange={e => setRuleForm(f => ({ ...f, risk_score: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '7px 10px', color: 'white', fontSize: 12, outline: 'none' }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Eylem</div>
+                      <select value={ruleForm.recommended_action} onChange={e => setRuleForm(f => ({ ...f, recommended_action: e.target.value }))}
+                        style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '7px 10px', color: 'white', fontSize: 12, outline: 'none' }}>
+                        {['warn', 'warn_and_log', 'block'].map(v => <option key={v} value={v} style={{ background: '#1a1a2e' }}>{v}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <button onClick={submitRule} disabled={addingRule}
+                    style={{
+                      alignSelf: 'flex-end', padding: '8px 20px', borderRadius: 8,
+                      background: addingRule ? 'rgba(124,58,237,0.3)' : 'rgba(124,58,237,0.8)',
+                      border: 'none', color: 'white', fontSize: 13, fontWeight: 700, cursor: addingRule ? 'not-allowed' : 'pointer',
+                    }}>
+                    {addingRule ? 'Ekleniyor...' : 'Ekle'}
+                  </button>
+                </div>
+              )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {policy.policy.categories.map((cat, i) => (
                   <div key={i} style={{
@@ -681,6 +839,14 @@ const PolicyTab = () => {
                         color: '#a78bfa', background: 'rgba(124,58,237,0.12)',
                         border: '1px solid rgba(124,58,237,0.25)', padding: '2px 8px', borderRadius: 5,
                       }}>{cat.name}</span>
+                      <span
+                        onClick={() => deleteCategory(cat.name)}
+                        title="Kategoriyi sil"
+                        style={{
+                          fontSize: 10, padding: '2px 6px', borderRadius: 4,
+                          cursor: 'pointer', color: 'rgba(248,113,113,0.55)',
+                          border: '1px solid rgba(248,113,113,0.15)', userSelect: 'none',
+                        }}>✕</span>
                       <span style={{
                         fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5,
                         background: cat.risk_level === 'critical' ? 'rgba(220,38,38,0.15)' :
@@ -699,7 +865,7 @@ const PolicyTab = () => {
                     </div>
                     <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5, marginBottom: 6 }}>{cat.description}</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                      {(cat.keywords || []).slice(0, 6).map((kw, j) => (
+                      {(expandedCats[i] ? (cat.keywords || []) : (cat.keywords || []).slice(0, 6)).map((kw, j) => (
                         <span key={j} style={{
                           fontSize: 11, fontFamily: 'monospace', padding: '2px 7px', borderRadius: 4,
                           background: 'rgba(37,99,235,0.1)', border: '1px solid rgba(37,99,235,0.2)',
@@ -707,8 +873,16 @@ const PolicyTab = () => {
                         }}>{kw}</span>
                       ))}
                       {(cat.keywords || []).length > 6 && (
-                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
-                          +{cat.keywords.length - 6} more
+                        <span
+                          onClick={() => toggleCatExpand(i)}
+                          style={{
+                            fontSize: 11, color: '#60a5fa', cursor: 'pointer',
+                            padding: '2px 7px', borderRadius: 4,
+                            background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.15)',
+                            userSelect: 'none',
+                          }}
+                        >
+                          {expandedCats[i] ? 'daha az göster' : `+${cat.keywords.length - 6} more`}
                         </span>
                       )}
                     </div>

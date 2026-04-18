@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 from app.database import Base, engine
 from app.models import institution, user, session
 from app.models.institution import Institution
@@ -15,6 +16,37 @@ from app.routers import auth, gateway, admin
 from app.routers import policy
 
 Base.metadata.create_all(bind=engine)
+
+
+def _run_migrations():
+    """
+    SQLite'a ALTER TABLE ile yeni kolonlar ekler (yoksa).
+    create_all mevcut tabloları değiştirmediği için elle yapılır.
+    """
+    add_stmts = [
+        "ALTER TABLE prompt_logs ADD COLUMN final_risk_score INTEGER",
+        "ALTER TABLE prompt_logs ADD COLUMN final_risk_level VARCHAR",
+        "ALTER TABLE users ADD COLUMN full_name VARCHAR",
+    ]
+    drop_stmts = [
+        "ALTER TABLE prompt_logs DROP COLUMN processing_time_ms",
+    ]
+    with engine.connect() as conn:
+        for stmt in add_stmts:
+            try:
+                conn.execute(text(stmt))
+                conn.commit()
+            except Exception:
+                pass  # Kolon zaten varsa SQLite hata verir — güvenle atla
+        for stmt in drop_stmts:
+            try:
+                conn.execute(text(stmt))
+                conn.commit()
+            except Exception:
+                pass  # Kolon yoksa veya SQLite sürümü desteklemiyorsa atla
+
+
+_run_migrations()
 
 # Rate limiter — IP bazlı
 limiter = Limiter(key_func=get_remote_address)

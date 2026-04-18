@@ -1,5 +1,19 @@
-import json
+import re
 from backend.ethics_module.rule_filter import rule_based_check
+
+
+def _keyword_matches(keyword: str, prompt_lower: str) -> bool:
+    """
+    Keyword'ün prompt içinde geçip geçmediğini kontrol eder.
+    Tek kelimeyse kelime sınırı (\b) kullanır; çok kelimeyse tam cümle arar.
+    """
+    kw = keyword.lower().strip()
+    if " " in kw:
+        # Çok kelimeli ifade — tam cümle eşleşmesi
+        return kw in prompt_lower
+    else:
+        # Tek kelime — kelime sınırı ile eşleştir (false positive önleme)
+        return bool(re.search(r'\b' + re.escape(kw) + r'\b', prompt_lower))
 
 
 def _check_custom_rules(prompt: str, rules: list) -> dict | None:
@@ -10,7 +24,7 @@ def _check_custom_rules(prompt: str, rules: list) -> dict | None:
     prompt_lower = prompt.lower()
     for rule in rules:
         for keyword in rule.get("keywords", []):
-            if keyword.lower() in prompt_lower:
+            if _keyword_matches(keyword, prompt_lower):
                 return {
                     "flagged": True,
                     "category": rule.get("name", "policy_violation"),
@@ -22,33 +36,9 @@ def _check_custom_rules(prompt: str, rules: list) -> dict | None:
     return None
 
 
-def _call_llm_classifier(prompt: str) -> dict:
+def _llm_classifier_fallback() -> dict:
     """
-    Prompt'u LLM'e göndererek etik sınıflandırması yapar.
-    JSON parse başarısız olursa JSONDecodeError fırlatır — çağıran taraf fallback'e düşer.
-    """
-    # --- MOCK AKTIF: Her zaman geçersiz JSON döndürür → JSONDecodeError tetiklenir ---
-    raw_response = "MOCK: intentionally invalid JSON to trigger fallback path"
-    # --- MOCK SONU ---
-
-    # --- ORIGINAL IMPLEMENTATION (devre dışı) ---
-    # from openai import OpenAI
-    # import os
-    # client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    # response = client.chat.completions.create(
-    #     model="gpt-4o-mini",
-    #     messages=[{"role": "system", "content": "..."}, {"role": "user", "content": prompt}]
-    # )
-    # raw_response = response.choices[0].message.content
-    # --- ORIGINAL IMPLEMENTATION END ---
-
-    return json.loads(raw_response)
-
-
-def _llm_classifier_fallback(prompt: str) -> dict:
-    """
-    _call_llm_classifier() JSONDecodeError fırlattığında devreye girer.
-    Bölüm 6.6: category='suspicious_request', confidence=0.0, action='allow'
+    LLM sınıflandırıcı entegre edilmediğinde kullanılan varsayılan sonuç.
     """
     return {
         "risk_score": 0,
@@ -56,7 +46,7 @@ def _llm_classifier_fallback(prompt: str) -> dict:
         "policy_violation": False,
         "category": "suspicious_request",
         "confidence": 0.0,
-        "explanation": "LLM classifier response could not be parsed. Fallback applied.",
+        "explanation": "No LLM classifier configured. Fallback applied.",
         "recommended_action": "allow"
     }
 
@@ -86,9 +76,14 @@ def analyze_ethics(payload: dict, custom_rules: list | None = None) -> dict:
                 "explanation": result["explanation"],
                 "recommended_action": result["recommended_action"],
             }
-        # Custom kural eşleşmedi — güvenlik ağı olarak varsayılan kurallara da bak
+        # Kurumun kendi politikası var ama eşleşme yok → kuruma göre allow
+        # Varsayılan kurallara DÜŞÜLMEz: kurumun politikası yetkili kaynaktır
+        return {
+            "module_name": "ethics_analyzer",
+            **_llm_classifier_fallback(),
+        }
 
-    # 2. Varsayılan kural tabanlı filtre (her zaman çalışır)
+    # 2. Varsayılan kural tabanlı filtre (yalnızca custom policy YOK ise çalışır)
     rule_result = rule_based_check(prompt)
 
     if rule_result["flagged"]:
@@ -103,13 +98,8 @@ def analyze_ethics(payload: dict, custom_rules: list | None = None) -> dict:
             "recommended_action": rule_result["recommended_action"],
         }
 
-    # 3. Kural geçtiyse LLM sınıflandırıcıya gönder (mock fallback)
-    try:
-        llm_result = _call_llm_classifier(prompt)
-    except json.JSONDecodeError:
-        llm_result = _llm_classifier_fallback(prompt)
-
+    # 3. Kural eşleşmedi → varsayılan güvenli sonuç
     return {
         "module_name": "ethics_analyzer",
-        **llm_result,
+        **_llm_classifier_fallback(),
     }

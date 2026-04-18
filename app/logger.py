@@ -63,7 +63,7 @@ def log_entry(
 
             # Ham metin saklanmaz, sadece hash (Bölüm 9.1)
             prompt_hash  = _hash_prompt(payload["prompt"]),
-            masked_prompt= pii_result.get("masked_prompt"),
+            masked_prompt= pii_result.get("masked_prompt") or payload.get("prompt"),
 
             # PII sonuçları
             pii_detected = json.dumps(

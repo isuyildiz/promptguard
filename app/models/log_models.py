@@ -40,9 +40,6 @@ class PromptLog(Base):
     final_risk_score    = Column(Integer, nullable=True)   # 0-100 birleşik risk skoru
     final_risk_level    = Column(String,  nullable=True)   # low / medium / high / critical
 
-    # Performans
-    processing_time_ms  = Column(Integer, nullable=True)
-
     # İlişki: bu log'a ait alertler
     alerts = relationship("Alert", back_populates="prompt_log")
 

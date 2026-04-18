@@ -55,7 +55,7 @@ const registerSchema = Yup.object().shape({
     then: (s) => s.required('Kurum kodu zorunludur'),
     otherwise: (s) => s.notRequired(),
   }),
-  password: Yup.string().min(6, 'En az 6 karakter').required('Zorunlu'),
+  password: Yup.string().min(8, 'En az 8 karakter').required('Zorunlu'),
   confirmPassword: Yup.string()
     .oneOf([Yup.ref('password')], 'Şifreler eşleşmiyor')
     .required('Zorunlu'),
@@ -526,6 +526,7 @@ const AuthPage = () => {
                       try {
                         await api.post('/auth/register', {
                           email: values.email,
+                          full_name: values.name || undefined,
                           password: values.password,
                           user_mode: userMode,
                           institution_code: userMode === 'institutional' ? values.institutionCode : undefined,

@@ -72,48 +72,6 @@ class SendRequest(BaseModel):
 
 
 # -------------------------------------------------------
-# PLACEHOLDER FONKSİYONLAR
-# Kişi 2 ve Kişi 3'ün modülleri hazır olunca
-# bu fonksiyonlar kaldırılıp gerçekleri import edilecek
-# -------------------------------------------------------
-
-def placeholder_pii(payload: dict) -> dict:
-    return {
-        "module_name": "pii_detector",
-        "risk_score": 0,
-        "risk_level": "low",
-        "contains_sensitive_data": False,
-        "detected_entities": [],
-        "masked_prompt": payload["prompt"],
-        "warning_message": "",
-        "recommended_action": "allow"
-    }
-
-def placeholder_ethics(payload: dict) -> dict:
-    return {
-        "module_name": "ethics_analyzer",
-        "risk_score": 0,
-        "risk_level": "low",
-        "policy_violation": False,
-        "category": "safe_usage",
-        "confidence": 1.0,
-        "explanation": "",
-        "recommended_action": "allow"
-    }
-
-def placeholder_decide(payload: dict, pii_result: dict, ethics_result: dict) -> dict:
-    return {
-        "final_action": "allow",
-        "final_risk_level": "low",
-        "final_risk_score": 0,
-        "prompt_to_send": payload["prompt"],
-        "user_message": "",
-        "log_required": False,
-        "block_reason": None
-    }
-
-
-# -------------------------------------------------------
 # YARDIMCI FONKSİYON: İç payload oluşturma (Bölüm 4.3)
 # user_id, user_mode, institution_id her zaman
 # JWT token'dan gelir — request body'den ALINMAZ

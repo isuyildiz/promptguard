@@ -31,11 +31,12 @@ def get_users(current_user: dict = Depends(require_admin),
     return {
         "users": [
             {
-                "id": u.id,
-                "email": u.email,
-                "role": u.role,
+                "id":        u.id,
+                "email":     u.email,
+                "full_name": u.full_name,
+                "role":      u.role,
                 "user_mode": u.user_mode,
-                "is_active": u.is_active
+                "is_active": u.is_active,
             }
             for u in users
         ]
@@ -75,12 +76,36 @@ def get_alerts(current_user: dict = Depends(require_admin),
                 "masked_prompt": (log.masked_prompt if log else None),
                 "is_reviewed":   a.is_reviewed,
                 "reviewed":      a.is_reviewed,
+                "reviewed_by":   a.reviewed_by,
                 "timestamp":     (log.timestamp.isoformat() + "Z" if log and log.timestamp else
                                   (a.created_at.isoformat() + "Z" if a.created_at else None)),
             }
             for a, log in rows
         ]
     }
+
+
+@router.patch("/alerts/{alert_id}/review")
+def review_alert(alert_id: int, is_reviewed: bool,
+                 current_user: dict = Depends(require_admin),
+                 db: Session = Depends(get_db)):
+    """
+    Uyarının incelendi/beklemede durumunu günceller.
+    """
+    institution_id = current_user["institution_id"]
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert bulunamadı")
+    if str(alert.institution_id) != str(institution_id):
+        raise HTTPException(status_code=403, detail="Bu alert üzerinde yetkiniz yok")
+    alert.is_reviewed = is_reviewed
+    if is_reviewed:
+        reviewer = db.query(User).filter(User.id == int(current_user["user_id"])).first()
+        alert.reviewed_by = reviewer.full_name or reviewer.email if reviewer else current_user["user_id"]
+    else:
+        alert.reviewed_by = None
+    db.commit()
+    return {"id": alert_id, "is_reviewed": is_reviewed, "reviewed_by": alert.reviewed_by}
 
 
 @router.patch("/users/{user_id}")
@@ -195,8 +220,8 @@ def get_logs(current_user: dict = Depends(require_admin),
                 "user_id":       log.user_id,
                 "masked_prompt": log.masked_prompt,
                 "final_action":  log.final_action,
-                "risk_level":    log.pii_risk_level,
-                "risk_score":    0,
+                "risk_level":    log.final_risk_level or log.pii_risk_level or "low",
+                "risk_score":    log.final_risk_score or 0,
                 "timestamp":     log.timestamp.isoformat() + "Z" if log.timestamp else None,
             }
             for log in logs

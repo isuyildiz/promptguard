@@ -11,12 +11,11 @@ const PrivateRoute = ({ children }) => {
   return token ? children : <Navigate to="/login" replace />;
 };
 
-/* ─── Admin Route: sadece admin/lecturer rolü erişebilir ─────── */
+/* ─── Admin Route: sadece corporate_admin rolü erişebilir ──────── */
 const AdminRoute = ({ children }) => {
   const { token, user } = useAuth();
   if (!token) return <Navigate to="/login" replace />;
-  // Backend hazır olduğunda JWT'den gelen rol burada kontrol edilecek:
-  // if (user?.role !== 'corporate_admin') return <Navigate to="/chat" replace />;
+  if (user?.role !== 'corporate_admin') return <Navigate to="/chat" replace />;
   return children;
 };
 

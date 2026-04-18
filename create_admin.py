@@ -36,7 +36,7 @@ else:
     print(f"[--] Kurum zaten mevcut: id={inst.id}")
 
 # --- Admin kullanıcı oluştur (yoksa) ---
-ADMIN_EMAIL    = "admin@demo.com"
+ADMIN_EMAIL    = "admin2@demo.com"
 ADMIN_PASSWORD = "Admin123!"
 
 existing = db.query(User).filter(User.email == ADMIN_EMAIL).first()

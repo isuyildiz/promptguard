@@ -146,17 +146,23 @@ RISK_SCORES = {
 CATEGORY_ACTIONS = {
     "exam_cheating_attempt": "warn_and_log",
     "full_task_delegation":  "warn_and_log",
-    "policy_violation":      "block",        # jailbreak / bypass → direkt block
+    "policy_violation":      "block",
     "suspicious_request":    "warn_and_log",
+}
+
+# Pattern'ları modül yüklenirken bir kez derle (performans)
+_COMPILED_PATTERNS = {
+    category: [re.compile(p) for p in patterns]
+    for category, patterns in CATEGORY_PATTERNS.items()
 }
 
 
 def rule_based_check(prompt: str) -> dict:
     prompt_lower = prompt.lower()
 
-    for category, patterns in CATEGORY_PATTERNS.items():
-        for pattern in patterns:
-            if re.search(pattern, prompt_lower):
+    for category, compiled in _COMPILED_PATTERNS.items():
+        for pattern in compiled:
+            if pattern.search(prompt_lower):
                 return {
                     "flagged": True,
                     "category": category,

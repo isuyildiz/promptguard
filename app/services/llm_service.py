@@ -6,7 +6,7 @@ from fastapi import HTTPException
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-3.1-flash-lite-preview"
 
 
 def send_to_llm(session_id: str, prompt: str, user_mode: str) -> dict:
