@@ -232,11 +232,12 @@ def get_logs(current_user: dict = Depends(require_admin),
                 "user_id":       log.user_id,
                 "full_name":     log_user_map.get(log.user_id, None) and log_user_map[log.user_id].full_name,
                 "email":         log_user_map.get(log.user_id, None) and log_user_map[log.user_id].email,
-                "masked_prompt": log.masked_prompt,
-                "final_action":  log.final_action,
-                "risk_level":    log.final_risk_level or log.pii_risk_level or "low",
-                "risk_score":    log.final_risk_score or 0,
-                "timestamp":     log.timestamp.isoformat() + "Z" if log.timestamp else None,
+                "masked_prompt":      log.masked_prompt,
+                "final_action":       log.final_action,
+                "risk_level":         log.final_risk_level or log.pii_risk_level or "low",
+                "risk_score":         log.final_risk_score or 0,
+                "ethics_eval_method": log.ethics_eval_method,
+                "timestamp":          log.timestamp.isoformat() + "Z" if log.timestamp else None,
             }
             for log in logs
         ]

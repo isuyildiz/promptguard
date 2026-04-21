@@ -26,6 +26,7 @@ def _run_migrations():
     add_stmts = [
         "ALTER TABLE prompt_logs ADD COLUMN final_risk_score INTEGER",
         "ALTER TABLE prompt_logs ADD COLUMN final_risk_level VARCHAR",
+        "ALTER TABLE prompt_logs ADD COLUMN ethics_eval_method VARCHAR",
         "ALTER TABLE users ADD COLUMN full_name VARCHAR",
     ]
     drop_stmts = [

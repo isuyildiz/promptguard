@@ -82,6 +82,9 @@ def log_entry(
             final_action      = decision["final_action"],
             final_risk_score  = decision.get("final_risk_score"),
             final_risk_level  = decision.get("final_risk_level"),
+
+            # Etik değerlendirme yöntemi
+            ethics_eval_method = ethics_result.get("eval_method"),
         )
 
         db.add(log)

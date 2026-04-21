@@ -563,14 +563,15 @@ const LogsTab = () => {
               <Th>Final Action</Th>
               <Th>Risk Level</Th>
               <Th>Risk Score</Th>
+              <Th>Ethics Eval</Th>
               <Th>Timestamp</Th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6}><Spinner /></td></tr>
+              <tr><td colSpan={7}><Spinner /></td></tr>
             ) : filtered.length === 0 ? (
-              <tr><Td colSpan={6} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: 24 }}>No logs yet.</Td></tr>
+              <tr><Td colSpan={7} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: 24 }}>No logs yet.</Td></tr>
             ) : filtered.map(log => (
               <tr key={log.id}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
@@ -594,6 +595,22 @@ const LogsTab = () => {
                 <Td><ActionBadge action={log.final_action} /></Td>
                 <Td><RiskBadge level={log.risk_level || 'low'} /></Td>
                 <Td><span style={{ fontWeight: 700, color: 'white' }}>{log.risk_score}</span></Td>
+                <Td>
+                  {log.ethics_eval_method ? (
+                    <span style={{
+                      fontSize: 10, fontFamily: 'monospace', padding: '2px 6px', borderRadius: 4,
+                      background: log.ethics_eval_method === 'gemini_llm'
+                        ? 'rgba(124,58,237,0.12)' : 'rgba(234,179,8,0.1)',
+                      border: `1px solid ${log.ethics_eval_method === 'gemini_llm'
+                        ? 'rgba(124,58,237,0.3)' : 'rgba(234,179,8,0.25)'}`,
+                      color: log.ethics_eval_method === 'gemini_llm' ? '#a78bfa' : '#fbbf24',
+                    }}>
+                      {log.ethics_eval_method === 'gemini_llm' ? 'LLM'
+                        : log.ethics_eval_method === 'rule_based' ? 'rule'
+                        : 'kw-fallback'}
+                    </span>
+                  ) : <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 11 }}>—</span>}
+                </Td>
                 <Td style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>
                   {log.timestamp}
                 </Td>

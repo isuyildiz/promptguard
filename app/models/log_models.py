@@ -40,6 +40,10 @@ class PromptLog(Base):
     final_risk_score    = Column(Integer, nullable=True)   # 0-100 birleşik risk skoru
     final_risk_level    = Column(String,  nullable=True)   # low / medium / high / critical
 
+    # Etik değerlendirme yöntemi izleme
+    # gemini_llm | keyword_fallback_no_key | keyword_fallback_gemini_error | keyword_fallback_parse_error | rule_based
+    ethics_eval_method  = Column(String,  nullable=True)
+
     # İlişki: bu log'a ait alertler
     alerts = relationship("Alert", back_populates="prompt_log")
 
