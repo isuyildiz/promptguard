@@ -142,7 +142,7 @@ const MaskBanner = ({ message, riskScore }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: message ? 6 : 0 }}>
       <span style={{ color: '#f59e0b', display: 'flex', flexShrink: 0 }}><ShieldWarnIcon /></span>
       <span style={{ color: '#fbbf24', fontSize: 12, fontWeight: 700, letterSpacing: '0.3px', flex: 1 }}>
-        Verileriniz maskelendi — gizlilik kuralları uygulandı.
+        Your data was masked — privacy rules applied.
       </span>
       {riskScore != null && (
         <span style={{
@@ -909,12 +909,12 @@ const Chat = () => {
                     <span className="history-item-actions">
                       <button
                         className="history-action-btn"
-                        title="Yeniden adlandır"
+                        title="Rename"
                         onClick={e => handleStartRename(e, s)}
                       >✎</button>
                       <button
                         className="history-action-btn delete"
-                        title="Sil"
+                        title="Delete"
                         onClick={e => handleDeleteSession(e, s.id)}
                       >✕</button>
                     </span>

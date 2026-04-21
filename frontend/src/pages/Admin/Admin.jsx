@@ -654,7 +654,7 @@ const PolicyTab = () => {
 
   const submitRule = async () => {
     if (!ruleForm.name.trim() || !ruleForm.keywords.trim()) {
-      setMessage({ type: 'error', text: 'Kategori adı ve en az bir anahtar kelime zorunludur.' });
+      setMessage({ type: 'error', text: 'Category name and at least one keyword are required.' });
       return;
     }
     setAddingRule(true);
@@ -668,7 +668,7 @@ const PolicyTab = () => {
         risk_score: Number(ruleForm.risk_score),
         recommended_action: ruleForm.recommended_action,
       });
-      setMessage({ type: 'success', text: 'Kural başarıyla eklendi.' });
+      setMessage({ type: 'success', text: 'Rule added successfully.' });
       setShowAddRule(false);
       setRuleForm({ name: '', description: '', keywords: '', risk_level: 'high', risk_score: 70, recommended_action: 'warn_and_log' });
       fetchPolicy();
@@ -685,7 +685,7 @@ const PolicyTab = () => {
       await api.delete(`/admin/policy/categories/${encodeURIComponent(catName)}`);
       fetchPolicy();
     } catch (e) {
-      setMessage({ type: 'error', text: e.response?.data?.detail || 'Kategori silinemedi.' });
+      setMessage({ type: 'error', text: e.response?.data?.detail || 'Failed to delete category.' });
     }
   };
 
@@ -717,7 +717,7 @@ const PolicyTab = () => {
       });
       setMessage({
         type: 'success',
-        text: `Politika başarıyla yüklendi. ${r.data.categories_count} kategori üretildi: ${r.data.categories.join(', ')}`,
+        text: `Policy uploaded successfully. ${r.data.categories_count} categories generated: ${r.data.categories.join(', ')}`,
       });
       fetchPolicy();
     } catch (e) {
@@ -725,19 +725,19 @@ const PolicyTab = () => {
       const detail = e.response?.data?.detail;
       let errorText;
       if (status === 413) {
-        errorText = 'Dosya boyutu çok büyük. Lütfen 5 MB\'dan küçük bir dosya yükleyin.';
+        errorText = 'File is too large. Please upload a file smaller than 5 MB.';
       } else if (status === 400) {
-        errorText = typeof detail === 'string' ? detail : 'Geçersiz dosya. Lütfen PDF, DOCX veya TXT formatında bir politika belgesi yükleyin.';
+        errorText = typeof detail === 'string' ? detail : 'Invalid file. Please upload a PDF, DOCX, or TXT policy document.';
       } else if (status === 429) {
-        errorText = 'Çok fazla yükleme denemesi yaptınız. Lütfen bir süre bekleyin ve tekrar deneyin.';
+        errorText = 'Too many upload attempts. Please wait a moment and try again.';
       } else if (status === 500) {
-        errorText = 'Sunucu hatası oluştu. Lütfen sistem yöneticinizle iletişime geçin.';
+        errorText = 'A server error occurred. Please contact your system administrator.';
       } else if (status === 502 || (typeof detail === 'string' && detail.includes('Gemini'))) {
-        errorText = 'Politika analizi şu anda gerçekleştirilemiyor. Yapay zeka servisi geçici olarak kullanılamıyor. Lütfen birkaç dakika sonra tekrar deneyin.';
+        errorText = 'Policy analysis is currently unavailable. The AI service is temporarily down. Please try again in a few minutes.';
       } else if (!e.response) {
-        errorText = 'Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin.';
+        errorText = 'Could not connect to the server. Please check your internet connection.';
       } else {
-        errorText = 'Politika yüklenirken bir sorun oluştu. Lütfen tekrar deneyin.';
+        errorText = 'Something went wrong while uploading the policy. Please try again.';
       }
       setMessage({ type: 'error', text: errorText });
     } finally {
@@ -755,7 +755,7 @@ const PolicyTab = () => {
       <div>
         <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: 26, fontWeight: 800, color: 'white', marginBottom: 4 }}>Ethics Policy</h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>
-          Kurumunuza özgü etik politika dosyasını yükleyin. Yüklenen dosya yapay zeka tarafından analiz edilerek otomatik kural seti oluşturulur.
+          Upload your institution's ethics policy document. The file will be analyzed by AI to automatically generate a rule set.
         </p>
       </div>
 
@@ -768,7 +768,7 @@ const PolicyTab = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             <span style={{ color: '#4ade80' }}><FileIcon /></span>
             <span style={{ color: '#4ade80', fontWeight: 700, fontFamily: 'Syne, sans-serif', fontSize: 15 }}>
-              Aktif Politika
+              Active Policy
             </span>
             <span style={{
               marginLeft: 'auto', fontSize: 11, fontWeight: 700, padding: '2px 9px',
@@ -778,15 +778,15 @@ const PolicyTab = () => {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
             <div style={{ color: 'rgba(255,255,255,0.6)' }}>
-              <span style={{ color: 'rgba(255,255,255,0.35)' }}>Dosya: </span>
+              <span style={{ color: 'rgba(255,255,255,0.35)' }}>File: </span>
               {policy.policy.file_name}
             </div>
             <div style={{ color: 'rgba(255,255,255,0.6)' }}>
-              <span style={{ color: 'rgba(255,255,255,0.35)' }}>Yükleme tarihi: </span>
+              <span style={{ color: 'rgba(255,255,255,0.35)' }}>Uploaded: </span>
               {new Date(policy.policy.uploaded_at).toLocaleString('tr-TR')}
             </div>
             <div style={{ color: 'rgba(255,255,255,0.6)' }}>
-              <span style={{ color: 'rgba(255,255,255,0.35)' }}>Kurum: </span>
+              <span style={{ color: 'rgba(255,255,255,0.35)' }}>Institution: </span>
               {policy.policy.institution_name}
             </div>
           </div>
@@ -795,7 +795,7 @@ const PolicyTab = () => {
             <div style={{ marginTop: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.8px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>
-                  Kategoriler ({policy.policy.categories.length})
+                  Categories ({policy.policy.categories.length})
                 </span>
                 <button
                   onClick={() => setShowAddRule(v => !v)}
@@ -805,7 +805,7 @@ const PolicyTab = () => {
                     color: '#a78bfa', borderRadius: 6, cursor: 'pointer',
                   }}
                 >
-                  {showAddRule ? 'İptal' : '+ Kural Ekle'}
+                  {showAddRule ? 'Cancel' : '+ Add Rule'}
                 </button>
               </div>
 
@@ -816,11 +816,11 @@ const PolicyTab = () => {
                   borderRadius: 12, padding: '16px', marginBottom: 12,
                   display: 'flex', flexDirection: 'column', gap: 10,
                 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#a78bfa', marginBottom: 2 }}>Yeni Kural Ekle</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#a78bfa', marginBottom: 2 }}>Add New Rule</div>
                   {[
-                    { label: 'Kategori Adı (snake_case)', key: 'name', placeholder: 'örn: unauthorized_tool_use' },
-                    { label: 'Açıklama', key: 'description', placeholder: 'Bu kural ne tür ihlalleri kapsar?' },
-                    { label: 'Anahtar Kelimeler (virgülle ayır)', key: 'keywords', placeholder: 'örn: şirketten veri çal, gizli bilgi sızdır' },
+                    { label: 'Category Name (snake_case)', key: 'name', placeholder: 'e.g. unauthorized_tool_use' },
+                    { label: 'Description', key: 'description', placeholder: 'What type of violations does this rule cover?' },
+                    { label: 'Keywords (comma-separated)', key: 'keywords', placeholder: 'e.g. steal company data, leak confidential info' },
                   ].map(({ label, key, placeholder }) => (
                     <div key={key}>
                       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>{label}</div>
@@ -839,21 +839,21 @@ const PolicyTab = () => {
                   ))}
                   <div style={{ display: 'flex', gap: 10 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Risk Seviyesi</div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Risk Level</div>
                       <select value={ruleForm.risk_level} onChange={e => setRuleForm(f => ({ ...f, risk_level: e.target.value }))}
                         style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '7px 10px', color: 'white', fontSize: 12, outline: 'none' }}>
                         {['low', 'medium', 'high', 'critical'].map(v => <option key={v} value={v} style={{ background: '#1a1a2e' }}>{v}</option>)}
                       </select>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Risk Skoru (0-100)</div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Risk Score (0-100)</div>
                       <input type="number" min="0" max="100" value={ruleForm.risk_score}
                         onChange={e => setRuleForm(f => ({ ...f, risk_score: e.target.value }))}
                         style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '7px 10px', color: 'white', fontSize: 12, outline: 'none' }}
                       />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Eylem</div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Action</div>
                       <select value={ruleForm.recommended_action} onChange={e => setRuleForm(f => ({ ...f, recommended_action: e.target.value }))}
                         style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '7px 10px', color: 'white', fontSize: 12, outline: 'none' }}>
                         {['warn', 'warn_and_log', 'block'].map(v => <option key={v} value={v} style={{ background: '#1a1a2e' }}>{v}</option>)}
@@ -866,7 +866,7 @@ const PolicyTab = () => {
                       background: addingRule ? 'rgba(124,58,237,0.3)' : 'rgba(124,58,237,0.8)',
                       border: 'none', color: 'white', fontSize: 13, fontWeight: 700, cursor: addingRule ? 'not-allowed' : 'pointer',
                     }}>
-                    {addingRule ? 'Ekleniyor...' : 'Ekle'}
+                    {addingRule ? 'Adding...' : 'Add'}
                   </button>
                 </div>
               )}
@@ -884,7 +884,7 @@ const PolicyTab = () => {
                       }}>{cat.name}</span>
                       <span
                         onClick={() => deleteCategory(cat.name)}
-                        title="Kategoriyi sil"
+                        title="Delete category"
                         style={{
                           fontSize: 10, padding: '2px 6px', borderRadius: 4,
                           cursor: 'pointer', color: 'rgba(248,113,113,0.55)',
@@ -925,7 +925,7 @@ const PolicyTab = () => {
                             userSelect: 'none',
                           }}
                         >
-                          {expandedCats[i] ? 'daha az göster' : `+${cat.keywords.length - 6} more`}
+                          {expandedCats[i] ? 'show less' : `+${cat.keywords.length - 6} more`}
                         </span>
                       )}
                     </div>
@@ -975,14 +975,14 @@ const PolicyTab = () => {
         </div>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 15, color: 'white', marginBottom: 6 }}>
-            {uploading ? 'Analiz ediliyor...' : 'Politika dosyasını sürükle veya tıkla'}
+            {uploading ? 'Analyzing...' : 'Drag & drop or click to upload policy file'}
           </div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
-            PDF, DOCX veya TXT · Maks. 10 MB
+            PDF, DOCX or TXT · Max. 10 MB
           </div>
           {uploading && (
             <div style={{ marginTop: 10, fontSize: 12, color: '#a78bfa' }}>
-              Gemini politikayı analiz ediyor, lütfen bekleyin...
+              Gemini is analyzing your policy, please wait...
             </div>
           )}
         </div>
@@ -996,8 +996,8 @@ const PolicyTab = () => {
       </div>
 
       <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', lineHeight: 1.7 }}>
-        Yüklenen dosya yapay zeka tarafından analiz edilir ve kurumunuza özgü etik ihlal kategorileri otomatik olarak oluşturulur.
-        Yeni bir dosya yüklendiğinde önceki politika devre dışı kalır. Ham politika metni sunucuda saklanır ancak kullanıcı promptlarıyla paylaşılmaz.
+        The uploaded file is analyzed by AI to automatically generate institution-specific ethics violation categories.
+        Uploading a new file deactivates the previous policy. The raw policy text is stored on the server but is never shared with user prompts.
       </div>
     </div>
   );

@@ -43,26 +43,26 @@ const EyeIcon = ({ show }) => show ? (
 
 /* ─── Validasyon Şemaları ─────────────────────────────────────── */
 const loginSchema = Yup.object().shape({
-  email: Yup.string().email('Geçersiz email').required('Zorunlu'),
-  password: Yup.string().required('Zorunlu'),
+  email: Yup.string().email('Invalid email').required('Required'),
+  password: Yup.string().required('Required'),
 });
 
 const registerSchema = Yup.object().shape({
-  name: Yup.string().required('Zorunlu'),
-  email: Yup.string().email('Geçersiz email').required('Zorunlu'),
+  name: Yup.string().required('Required'),
+  email: Yup.string().email('Invalid email').required('Required'),
   institutionCode: Yup.string().when('$userMode', {
     is: 'institutional',
-    then: (s) => s.required('Kurum kodu zorunludur'),
+    then: (s) => s.required('Institution code is required'),
     otherwise: (s) => s.notRequired(),
   }),
-  password: Yup.string().min(8, 'En az 8 karakter').required('Zorunlu'),
+  password: Yup.string().min(8, 'At least 8 characters').required('Required'),
   confirmPassword: Yup.string()
-    .oneOf([Yup.ref('password')], 'Şifreler eşleşmiyor')
-    .required('Zorunlu'),
+    .oneOf([Yup.ref('password')], 'Passwords do not match')
+    .required('Required'),
 });
 
 const resetSchema = Yup.object().shape({
-  email: Yup.string().email('Geçersiz email').required('Zorunlu'),
+  email: Yup.string().email('Invalid email').required('Required'),
 });
 
 /* ─── Input Bileşeni ──────────────────────────────────────────── */
