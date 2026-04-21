@@ -383,14 +383,18 @@ const Chat = () => {
     saveActiveSession(userId, active);
     // Mevcut oturumu sidebar'a hemen yansıt (ilk mesaj gönderildiğinde görünür olsun)
     setSessions(prev => {
-      const title = messages[0].content.slice(0, 32) + (messages[0].content.length > 32 ? '…' : '');
-      const time = messages[0].time || '';
-      const entry = { id: sessionId, title, time, messages };
-      const existing = prev.findIndex(s => s.id === sessionId);
+      const existing = prev.find(s => s.id === sessionId);
+      // Kullanıcı manuel ad verdiyse koru, yoksa ilk mesajdan üret
+      const title = (existing?.customTitle && existing.title)
+        ? existing.title
+        : messages[0].content.slice(0, 32) + (messages[0].content.length > 32 ? '…' : '');
+      const time = existing?.time || messages[0].time || '';
+      const entry = { id: sessionId, title, time, messages, customTitle: existing?.customTitle || false };
+      const existingIdx = prev.findIndex(s => s.id === sessionId);
       let next;
-      if (existing >= 0) {
+      if (existingIdx >= 0) {
         next = [...prev];
-        next[existing] = entry;
+        next[existingIdx] = entry;
       } else {
         next = [entry, ...prev];
       }
@@ -412,14 +416,18 @@ const Chat = () => {
 
   const persistSession = (currentMessages, sid, currentSessions) => {
     if (currentMessages.length === 0) return currentSessions;
-    const title = currentMessages[0].content.slice(0, 32) + (currentMessages[0].content.length > 32 ? '…' : '');
-    const time = currentMessages[0].time || '';
-    const entry = { id: sid, title, time, messages: currentMessages };
-    const existing = currentSessions.findIndex(s => s.id === sid);
+    const existing = currentSessions.find(s => s.id === sid);
+    // Kullanıcı manuel ad verdiyse koru
+    const title = (existing?.customTitle && existing.title)
+      ? existing.title
+      : currentMessages[0].content.slice(0, 32) + (currentMessages[0].content.length > 32 ? '…' : '');
+    const time = existing?.time || currentMessages[0].time || '';
+    const entry = { id: sid, title, time, messages: currentMessages, customTitle: existing?.customTitle || false };
+    const existingIdx = currentSessions.findIndex(s => s.id === sid);
     let next;
-    if (existing >= 0) {
+    if (existingIdx >= 0) {
       next = [...currentSessions];
-      next[existing] = entry;
+      next[existingIdx] = entry;
     } else {
       next = [entry, ...currentSessions];
     }
@@ -463,7 +471,7 @@ const Chat = () => {
     const trimmed = renameValue.trim();
     if (!trimmed) { setRenamingId(null); return; }
     setSessions(prev => {
-      const next = prev.map(s => s.id === sid ? { ...s, title: trimmed } : s);
+      const next = prev.map(s => s.id === sid ? { ...s, title: trimmed, customTitle: true } : s);
       saveSessions(userId, next);
       return next;
     });
