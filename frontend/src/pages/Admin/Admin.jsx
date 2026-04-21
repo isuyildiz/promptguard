@@ -477,7 +477,6 @@ const UsersTab = () => {
                         <div style={{ fontWeight: 600, color: 'white', fontSize: 13 }}>{u.full_name}</div>
                       )}
                       <div style={{ fontWeight: u.full_name ? 400 : 500, color: u.full_name ? 'rgba(255,255,255,0.5)' : 'white', fontSize: 13 }}>{u.email}</div>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>#{u.id}</div>
                     </div>
                   </div>
                 </Td>
