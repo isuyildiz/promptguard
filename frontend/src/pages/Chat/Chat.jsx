@@ -366,18 +366,37 @@ const Chat = () => {
   const [sessions, setSessions] = useState(() => loadSessions(userId));
 
   const [loading, setLoading] = useState(false);
+  const [renamingId, setRenamingId] = useState(null);   // hangi oturum yeniden adlandırılıyor
+  const [renameValue, setRenameValue] = useState('');
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  const renameInputRef = useRef(null);
 
   const userMode = user?.mode || 'individual';
   const userName = user?.email?.split('@')[0] || 'User';
   const isAdmin = user?.role === 'corporate_admin';
 
-  // Mesajlar değişince bu kullanıcının localStorage'ını güncelle
+  // Mesajlar değişince localStorage'ı ve sidebar oturum listesini güncelle
   useEffect(() => {
     if (messages.length === 0) return;
     const active = { id: sessionId, messages };
     saveActiveSession(userId, active);
+    // Mevcut oturumu sidebar'a hemen yansıt (ilk mesaj gönderildiğinde görünür olsun)
+    setSessions(prev => {
+      const title = messages[0].content.slice(0, 32) + (messages[0].content.length > 32 ? '…' : '');
+      const time = messages[0].time || '';
+      const entry = { id: sessionId, title, time, messages };
+      const existing = prev.findIndex(s => s.id === sessionId);
+      let next;
+      if (existing >= 0) {
+        next = [...prev];
+        next[existing] = entry;
+      } else {
+        next = [entry, ...prev];
+      }
+      saveSessions(userId, next);
+      return next;
+    });
   }, [messages, sessionId, userId]);
 
   useEffect(() => {
@@ -416,6 +435,39 @@ const Chat = () => {
     setActiveSession(null);
     saveActiveSession(userId, null);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
+  };
+
+  const handleDeleteSession = (e, sid) => {
+    e.stopPropagation();
+    const next = sessions.filter(s => s.id !== sid);
+    setSessions(next);
+    saveSessions(userId, next);
+    // Silinen oturum aktif ise sıfırla
+    if (sid === sessionId) {
+      setMessages([]);
+      const newSid = 's' + Math.random().toString(36).slice(2, 8);
+      setSessionId(newSid);
+      setActiveSession(null);
+      saveActiveSession(userId, null);
+    }
+  };
+
+  const handleStartRename = (e, s) => {
+    e.stopPropagation();
+    setRenamingId(s.id);
+    setRenameValue(s.title);
+    setTimeout(() => renameInputRef.current?.select(), 50);
+  };
+
+  const handleRenameSubmit = (sid) => {
+    const trimmed = renameValue.trim();
+    if (!trimmed) { setRenamingId(null); return; }
+    setSessions(prev => {
+      const next = prev.map(s => s.id === sid ? { ...s, title: trimmed } : s);
+      saveSessions(userId, next);
+      return next;
+    });
+    setRenamingId(null);
   };
 
   const handleLoadSession = (session) => {
@@ -630,6 +682,29 @@ const Chat = () => {
           font-size: 10px; color: rgba(255,255,255,0.25);
           flex-shrink: 0;
         }
+        .history-item-actions {
+          display: none; align-items: center; gap: 3px; flex-shrink: 0;
+        }
+        .history-item:hover .history-item-actions {
+          display: flex;
+        }
+        .history-item:hover .history-item-time {
+          display: none;
+        }
+        .history-action-btn {
+          background: none; border: none; cursor: pointer;
+          color: rgba(255,255,255,0.3); padding: 2px 4px;
+          border-radius: 4px; font-size: 12px; line-height: 1;
+          transition: color 0.15s, background 0.15s;
+        }
+        .history-action-btn:hover { color: white; background: rgba(255,255,255,0.08); }
+        .history-action-btn.delete:hover { color: #f87171; background: rgba(248,113,113,0.1); }
+        .history-rename-input {
+          flex: 1; background: rgba(255,255,255,0.08);
+          border: 1px solid rgba(124,58,237,0.4); border-radius: 6px;
+          color: white; font-size: 12px; font-family: 'DM Sans', sans-serif;
+          padding: 2px 6px; outline: none; min-width: 0;
+        }
 
         .sidebar-user {
           display: flex; align-items: center; gap: 10px;
@@ -802,11 +877,41 @@ const Chat = () => {
               <div
                 key={s.id}
                 className={`history-item ${activeSession?.id === s.id ? 'active' : ''}`}
-                onClick={() => handleLoadSession(s)}
+                onClick={() => renamingId !== s.id && handleLoadSession(s)}
               >
                 <span style={{ color: 'inherit', display: 'flex', flexShrink: 0 }}><ChatIcon /></span>
-                <span className="history-item-title">{s.title}</span>
-                <span className="history-item-time">{s.time}</span>
+                {renamingId === s.id ? (
+                  <input
+                    ref={renameInputRef}
+                    className="history-rename-input"
+                    value={renameValue}
+                    onChange={e => setRenameValue(e.target.value)}
+                    onBlur={() => handleRenameSubmit(s.id)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') handleRenameSubmit(s.id);
+                      if (e.key === 'Escape') setRenamingId(null);
+                    }}
+                    onClick={e => e.stopPropagation()}
+                    autoFocus
+                  />
+                ) : (
+                  <>
+                    <span className="history-item-title">{s.title}</span>
+                    <span className="history-item-time">{s.time}</span>
+                    <span className="history-item-actions">
+                      <button
+                        className="history-action-btn"
+                        title="Yeniden adlandır"
+                        onClick={e => handleStartRename(e, s)}
+                      >✎</button>
+                      <button
+                        className="history-action-btn delete"
+                        title="Sil"
+                        onClick={e => handleDeleteSession(e, s.id)}
+                      >✕</button>
+                    </span>
+                  </>
+                )}
               </div>
             ))}
           </div>

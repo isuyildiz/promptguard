@@ -371,9 +371,9 @@ const AlertsTab = () => {
                     onClick={() => toggleReviewed(row.id, row.is_reviewed || row.reviewed)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 5,
-                      background: (row.reviewed || row.is_reviewed) ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)',
-                      border: `1px solid ${(row.reviewed || row.is_reviewed) ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`,
-                      color: (row.reviewed || row.is_reviewed) ? '#4ade80' : 'rgba(255,255,255,0.35)',
+                      background: (row.reviewed || row.is_reviewed) ? 'rgba(107,114,128,0.12)' : 'rgba(251,146,60,0.12)',
+                      border: `1px solid ${(row.reviewed || row.is_reviewed) ? 'rgba(107,114,128,0.3)' : 'rgba(251,146,60,0.35)'}`,
+                      color: (row.reviewed || row.is_reviewed) ? 'rgba(156,163,175,0.8)' : '#fb923c',
                       borderRadius: 6, padding: '4px 10px', cursor: 'pointer',
                       fontSize: 12, fontFamily: 'DM Sans, sans-serif', fontWeight: 500,
                     }}
@@ -704,10 +704,24 @@ const PolicyTab = () => {
       });
       fetchPolicy();
     } catch (e) {
+      const status = e.response?.status;
       const detail = e.response?.data?.detail;
-      const errorText = typeof detail === 'string' ? detail
-                      : Array.isArray(detail) ? detail.map(d => d.msg).join(', ')
-                      : e.message || 'Yükleme başarısız.';
+      let errorText;
+      if (status === 413) {
+        errorText = 'Dosya boyutu çok büyük. Lütfen 5 MB\'dan küçük bir dosya yükleyin.';
+      } else if (status === 400) {
+        errorText = typeof detail === 'string' ? detail : 'Geçersiz dosya. Lütfen PDF, DOCX veya TXT formatında bir politika belgesi yükleyin.';
+      } else if (status === 429) {
+        errorText = 'Çok fazla yükleme denemesi yaptınız. Lütfen bir süre bekleyin ve tekrar deneyin.';
+      } else if (status === 500) {
+        errorText = 'Sunucu hatası oluştu. Lütfen sistem yöneticinizle iletişime geçin.';
+      } else if (status === 502 || (typeof detail === 'string' && detail.includes('Gemini'))) {
+        errorText = 'Politika analizi şu anda gerçekleştirilemiyor. Yapay zeka servisi geçici olarak kullanılamıyor. Lütfen birkaç dakika sonra tekrar deneyin.';
+      } else if (!e.response) {
+        errorText = 'Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin.';
+      } else {
+        errorText = 'Politika yüklenirken bir sorun oluştu. Lütfen tekrar deneyin.';
+      }
       setMessage({ type: 'error', text: errorText });
     } finally {
       setUploading(false);
