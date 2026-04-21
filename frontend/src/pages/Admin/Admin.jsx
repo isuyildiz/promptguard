@@ -219,8 +219,11 @@ const OverviewTab = () => {
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <Td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <UserAvatar initials={(row.user_id || '??').toString().slice(0, 2).toUpperCase()} />
-                      <span style={{ fontWeight: 500, color: 'white' }}>{row.user_id}</span>
+                      <UserAvatar initials={(row.full_name || row.email || row.user_id || '?').slice(0, 2).toUpperCase()} />
+                      <div>
+                        {row.full_name && <div style={{ fontWeight: 600, color: 'white', fontSize: 13 }}>{row.full_name}</div>}
+                        <div style={{ fontSize: 12, color: row.full_name ? 'rgba(255,255,255,0.45)' : 'white', fontWeight: row.full_name ? 400 : 500 }}>{row.email || row.user_id}</div>
+                      </div>
                     </div>
                   </Td>
                   <Td><span style={{ fontStyle: 'italic', color: 'rgba(255,255,255,0.5)' }}>{row.category || row.alert_type || '—'}</span></Td>
@@ -252,9 +255,12 @@ const AlertsTab = () => {
   }, []);
 
   const filtered = alerts.filter(a => {
+    const q = search.toLowerCase();
     const matchSearch = !search ||
-      String(a.user_id).toLowerCase().includes(search.toLowerCase()) ||
-      String(a.masked_prompt || '').toLowerCase().includes(search.toLowerCase());
+      String(a.user_id).toLowerCase().includes(q) ||
+      String(a.full_name || '').toLowerCase().includes(q) ||
+      String(a.email || '').toLowerCase().includes(q) ||
+      String(a.masked_prompt || '').toLowerCase().includes(q);
     const matchRisk = riskFilter === 'all' || a.risk_score >= { high: 70, critical: 90 }[riskFilter] || 0;
     return matchSearch && matchRisk;
   });
@@ -334,7 +340,13 @@ const AlertsTab = () => {
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 <Td>
-                  <UserAvatar initials={String(row.user_id || '?').slice(0, 2).toUpperCase()} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <UserAvatar initials={(row.full_name || row.email || row.user_id || '?').slice(0, 2).toUpperCase()} />
+                    <div>
+                      {row.full_name && <div style={{ fontWeight: 600, color: 'white', fontSize: 13 }}>{row.full_name}</div>}
+                      <div style={{ fontSize: 12, color: row.full_name ? 'rgba(255,255,255,0.45)' : 'white', fontWeight: row.full_name ? 400 : 500 }}>{row.email || row.user_id}</div>
+                    </div>
+                  </div>
                 </Td>
                 <Td style={{ maxWidth: 240 }}>
                   <span style={{
@@ -547,7 +559,6 @@ const LogsTab = () => {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <Th>Log ID</Th>
               <Th>User</Th>
               <Th>Masked Prompt</Th>
               <Th>Final Action</Th>
@@ -558,15 +569,22 @@ const LogsTab = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7}><Spinner /></td></tr>
+              <tr><td colSpan={6}><Spinner /></td></tr>
             ) : filtered.length === 0 ? (
-              <tr><Td colSpan={7} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: 24 }}>No logs yet.</Td></tr>
+              <tr><Td colSpan={6} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: 24 }}>No logs yet.</Td></tr>
             ) : filtered.map(log => (
               <tr key={log.id}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                <Td style={{ fontFamily: 'monospace', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>{log.id}</Td>
-                <Td style={{ fontWeight: 500, color: 'white' }}>{log.user_id}</Td>
+                <Td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <UserAvatar initials={(log.full_name || log.email || log.user_id || '?').slice(0, 2).toUpperCase()} />
+                    <div>
+                      {log.full_name && <div style={{ fontWeight: 600, color: 'white', fontSize: 13 }}>{log.full_name}</div>}
+                      <div style={{ fontSize: 12, color: log.full_name ? 'rgba(255,255,255,0.45)' : 'white', fontWeight: log.full_name ? 400 : 500 }}>{log.email || log.user_id}</div>
+                    </div>
+                  </div>
+                </Td>
                 <Td style={{ maxWidth: 220 }}>
                   <span style={{
                     display: 'block', overflow: 'hidden', textOverflow: 'ellipsis',

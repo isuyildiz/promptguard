@@ -62,11 +62,18 @@ def get_alerts(current_user: dict = Depends(require_admin),
         .all()
     )
 
+    # Kullanıcı bilgilerini tek sorguda çek
+    alert_user_ids = list({int(a.user_id) for a, _ in rows if a.user_id})
+    alert_users = db.query(User).filter(User.id.in_(alert_user_ids)).all()
+    alert_user_map = {str(u.id): u for u in alert_users}
+
     return {
         "alerts": [
             {
                 "id":            a.id,
                 "user_id":       a.user_id,
+                "full_name":     alert_user_map.get(str(a.user_id), None) and alert_user_map[str(a.user_id)].full_name,
+                "email":         alert_user_map.get(str(a.user_id), None) and alert_user_map[str(a.user_id)].email,
                 "alert_type":    a.alert_type,
                 "category":      (log.violation_category if log and log.violation_category else a.alert_type),
                 "severity":      a.severity,
@@ -213,11 +220,18 @@ def get_logs(current_user: dict = Depends(require_admin),
         .all()
     )
 
+    # Kullanıcı bilgilerini tek sorguda çek
+    log_user_ids = list({int(log.user_id) for log in logs if log.user_id})
+    log_users = db.query(User).filter(User.id.in_(log_user_ids)).all()
+    log_user_map = {str(u.id): u for u in log_users}
+
     return {
         "logs": [
             {
                 "id":            log.id,
                 "user_id":       log.user_id,
+                "full_name":     log_user_map.get(log.user_id, None) and log_user_map[log.user_id].full_name,
+                "email":         log_user_map.get(log.user_id, None) and log_user_map[log.user_id].email,
                 "masked_prompt": log.masked_prompt,
                 "final_action":  log.final_action,
                 "risk_level":    log.final_risk_level or log.pii_risk_level or "low",
