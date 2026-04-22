@@ -774,7 +774,7 @@ const PolicyTab = () => {
               marginLeft: 'auto', fontSize: 11, fontWeight: 700, padding: '2px 9px',
               background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)',
               color: '#4ade80', borderRadius: 6,
-            }}>AKTİF</span>
+            }}>ACTIVE</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
             <div style={{ color: 'rgba(255,255,255,0.6)' }}>
@@ -903,7 +903,7 @@ const PolicyTab = () => {
                                              cat.risk_level === 'medium'   ? 'rgba(234,179,8,0.3)'  : 'rgba(107,114,128,0.3)'}`,
                       }}>{(cat.risk_level || 'low').toUpperCase()}</span>
                       <span style={{ marginLeft: 'auto', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
-                        Skor: {cat.risk_score} · {cat.recommended_action}
+                        Score: {cat.risk_score} · {cat.recommended_action}
                       </span>
                     </div>
                     <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5, marginBottom: 6 }}>{cat.description}</p>
