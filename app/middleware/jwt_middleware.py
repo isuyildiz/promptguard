@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 from app.database import get_db
 from app.models.user import User
+from app.models.revoked_token import RevokedToken
 
 load_dotenv()
 
@@ -30,16 +31,21 @@ def get_current_user(authorization: str = Header(...), db: Session = Depends(get
         if user_id is None:
             raise HTTPException(status_code=401, detail="UNAUTHORIZED")
 
+        # JTI blacklist kontrolü
+        jti = payload.get("jti")
+        if jti and db.query(RevokedToken).filter(RevokedToken.jti == jti).first():
+            raise HTTPException(status_code=401, detail="TOKEN_REVOKED")
+
         # Kullanıcının hâlâ aktif olup olmadığını DB'den kontrol et
         user = db.query(User).filter(User.id == int(user_id)).first()
         if not user or not user.is_active:
             raise HTTPException(status_code=401, detail="ACCOUNT_DISABLED")
 
         return {
-            "user_id":        user_id,
-            "user_mode":      payload.get("user_mode"),
-            "institution_id": payload.get("institution_id"),
-            "role":           payload.get("role"),
+            "user_id":        str(user.id),
+            "user_mode":      user.user_mode,
+            "institution_id": user.institution_id,
+            "role":           user.role,
         }
 
     except HTTPException:

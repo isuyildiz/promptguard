@@ -97,7 +97,8 @@ def build_internal_payload(body: SendRequest, current_user: dict) -> dict:
 # -------------------------------------------------------
 
 @router.post("/analyze")
-def analyze(body: SendRequest, current_user: dict = Depends(get_current_user),
+@limiter.limit("20/minute")
+def analyze(request: Request, body: SendRequest, current_user: dict = Depends(get_current_user),
             db: Session = Depends(get_db)):
     """
     Promptu analiz eder ama LLM'e GÖNDERMEZ.

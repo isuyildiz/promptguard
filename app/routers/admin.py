@@ -9,6 +9,12 @@ from app.models.log_models import PromptLog, Alert
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
+def same_institution(a, b) -> bool:
+    if a is None or b is None:
+        return False
+    return a == b
+
+
 @router.get("/users")
 def get_users(current_user: dict = Depends(require_admin),
               db: Session = Depends(get_db)):
@@ -103,7 +109,7 @@ def review_alert(alert_id: int, is_reviewed: bool,
     alert = db.query(Alert).filter(Alert.id == alert_id).first()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert bulunamadı")
-    if str(alert.institution_id) != str(institution_id):
+    if not same_institution(alert.institution_id, institution_id):
         raise HTTPException(status_code=403, detail="Bu alert üzerinde yetkiniz yok")
     alert.is_reviewed = is_reviewed
     if is_reviewed:
@@ -133,7 +139,7 @@ def toggle_user_access(user_id: int, is_active: bool,
                                     "message": "Kullanıcı bulunamadı"})
 
     # Farklı kurumdaki kullanıcıya müdahale edilemesin
-    if target_user.institution_id != current_user["institution_id"]:
+    if not same_institution(target_user.institution_id, current_user["institution_id"]):
         raise HTTPException(status_code=403,
                             detail={"error": True,
                                     "error_code": "FORBIDDEN",

@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -12,8 +13,14 @@ from app.models.user import User
 from app.models.session import Session
 from app.models.log_models import PromptLog, Alert
 from app.models.ethics_policy import InstitutionEthicsPolicy
+from app.models.revoked_token import RevokedToken  # noqa: F401 — registers table
 from app.routers import auth, gateway, admin
 from app.routers import policy
+
+# P4 — I-02: SECRET_KEY startup validation
+_secret_key = os.getenv("SECRET_KEY")
+if not _secret_key or len(_secret_key) < 32:
+    raise RuntimeError("SECRET_KEY is not set or too short (min 32 chars). Set it in your .env file.")
 
 Base.metadata.create_all(bind=engine)
 
@@ -52,7 +59,13 @@ _run_migrations()
 # Rate limiter — IP bazlı
 limiter = Limiter(key_func=get_remote_address)
 
-app = FastAPI(title="PromptGuard")
+# P4 — I-01: disable /docs and /redoc in production
+_env = os.getenv("ENVIRONMENT", "production")
+app = FastAPI(
+    title="PromptGuard",
+    docs_url="/docs" if _env == "development" else None,
+    redoc_url="/redoc" if _env == "development" else None,
+)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

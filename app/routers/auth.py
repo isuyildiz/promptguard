@@ -1,24 +1,30 @@
 import re
 import os
+import uuid
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from jose import jwt
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.database import get_db
 from app.models.user import User
 from app.models.institution import Institution
+from app.models.revoked_token import RevokedToken
 
 load_dotenv()
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+limiter = Limiter(key_func=get_remote_address)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+DUMMY_HASH = pwd_context.hash("__dummy_password_for_timing__")
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
@@ -65,7 +71,7 @@ def _validate_password(password: str) -> None:
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "jti": str(uuid.uuid4())})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -115,12 +121,16 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     # Kullanıcıyı bul
     user = db.query(User).filter(User.email == body.email).first()
 
-    # Kullanıcı yoksa veya şifre yanlışsa aynı hatayı ver (güvenlik)
-    if not user or not pwd_context.verify(body.password, user.hashed_password):
+    # DUMMY_HASH: kullanıcı bulunamazsa da verify çalıştır → timing saldırısını önler
+    hash_to_check = user.hashed_password if user else DUMMY_HASH
+    password_ok = pwd_context.verify(body.password, hash_to_check)
+
+    if not user or not password_ok:
         raise HTTPException(status_code=401, detail="Email veya şifre hatalı")
 
     # Hesap aktif mi?
@@ -144,7 +154,15 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/logout")
-def logout():
-    # JWT stateless çalışır — sunucuda silinecek bir şey yok
-    # Token'ı silmek frontend'in sorumluluğu
+def logout(authorization: str = Header(...), db: Session = Depends(get_db)):
+    try:
+        parts = authorization.split(" ")
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            payload = jwt.decode(parts[1], SECRET_KEY, algorithms=[ALGORITHM])
+            jti = payload.get("jti")
+            if jti:
+                db.add(RevokedToken(jti=jti, revoked_at=datetime.utcnow()))
+                db.commit()
+    except Exception:
+        pass  # Token geçersizse bile logout başarılı sayılır
     return {"message": "Çıkış başarılı"}
