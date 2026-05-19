@@ -978,7 +978,7 @@ const PolicyTab = () => {
             {uploading ? 'Analyzing...' : 'Drag & drop or click to upload policy file'}
           </div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
-            PDF, DOCX or TXT · Max. 10 MB
+            PDF, DOCX or TXT · Max. 5 MB
           </div>
           {uploading && (
             <div style={{ marginTop: 10, fontSize: 12, color: '#a78bfa' }}>

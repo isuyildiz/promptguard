@@ -76,3 +76,19 @@ run_test(
         lambda r: any(e["type"] == "FINANCIAL_DATA" for e in r["detected_entities"]),
     ]
 )
+
+# Test 6 — Slayt 8 örneği: iki isim + ID, çoklu PERSON numaralandırması
+run_test(
+    6, "Slayt 8 örneği — çoklu isim + ID",
+    "My name is Ahmet Yılmaz, Zeynep Kaya helped me. ID: 12345678910",
+    [
+        lambda r: r["contains_sensitive_data"] == True,
+        lambda r: r["recommended_action"] == "mask_and_allow",
+        lambda r: sum(1 for e in r["detected_entities"] if e["type"] == "PERSON") == 2,
+        lambda r: any(e["type"] == "ID_NUMBER" for e in r["detected_entities"]),
+        lambda r: any(e["label"] == "PERSON_1" for e in r["detected_entities"]),
+        lambda r: any(e["label"] == "PERSON_2" for e in r["detected_entities"]),
+        lambda r: any(e["label"] == "ID_NUMBER" for e in r["detected_entities"]),
+        lambda r: r["masked_prompt"] == "My name is [PERSON_1], [PERSON_2] helped me. ID: [ID_NUMBER]",
+    ]
+)

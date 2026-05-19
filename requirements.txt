@@ -1,10 +1,33 @@
+# Web framework
 fastapi
-uvicorn
+uvicorn[standard]
+
+# Database
 sqlalchemy
+
+# Authentication & JWT
 python-jose[cryptography]
 passlib[bcrypt]
+
+# Configuration
 python-dotenv
-openai
-httpx
+
+# Rate limiting (auth, gateway, policy router'ları)
+slowapi
+
+# FastAPI file upload (UploadFile için zorunlu)
+python-multipart
+
+# Policy belgesi parse — PDF & DOCX
+pypdf
+python-docx
+
+# Google Gemini API (llm_service, ethics_analyzer, policy)
+google-genai
+
+# PII detection
 presidio-analyzer
 spacy
+
+# Test / pentest scriptleri (test_behaviors.py, pentest_retest.py)
+requests

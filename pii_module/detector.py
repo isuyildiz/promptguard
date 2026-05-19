@@ -1,8 +1,11 @@
+import re
+
 from presidio_analyzer import AnalyzerEngine, PatternRecognizer, Pattern
 from presidio_analyzer.nlp_engine import NlpEngineProvider
 
 # ---------------------------------------------------------------------------
-# Entity type mapping: Presidio → PromptGuard categories (Bölüm 3.6)
+# Entity type mapp
+# ing: Presidio → PromptGuard categories (Bölüm 3.6)
 # ---------------------------------------------------------------------------
 ENTITY_MAPPING = {
     "PERSON": "PERSON",
@@ -14,9 +17,6 @@ ENTITY_MAPPING = {
     "DATE_TIME": "ID_NUMBER",
     "US_SSN": "ID_NUMBER",
     "US_PASSPORT": "ID_NUMBER",
-    "NRP": "ID_NUMBER",
-    "LOCATION": "ADDRESS",
-    "ORGANIZATION": "ORGANIZATION",
     "MEDICAL_LICENSE": "HEALTH_DATA",
     "URL": "ADDRESS",
 }
@@ -170,6 +170,62 @@ tc_kimlik_recognizer = PatternRecognizer(
     ],
 )
 
+# PERSON recognizer — Türkçe ve İngilizce isim tespiti
+# NER kullanmadığımız için pattern-tabanlı yaklaşım:
+#   1. Bağlam tetikleyicileri (yüksek güven, score=0.85):
+#      "my name is X", "I am X", "adım X", "ismim X" gibi açık isim ifadeleri
+#   2. Genel pattern (orta güven, score=0.65):
+#      ardışık iki büyük harfli kelime — "Zeynep Kaya helped me" gibi context'siz adlar
+# Tasarım kararı: Tek kelimelik isimler (sadece "Ali") YAKALANMAZ —
+# false positive riskine karşı bilinçli precision-first tercih.
+person_recognizer = PatternRecognizer(
+    supported_entity="PERSON",
+    patterns=[
+        # İngilizce bağlam tetikleyicileri
+        Pattern(
+            name="person_after_my_name_is",
+            regex=r"(?<=[Mm]y name is )[A-ZÇĞIİÖŞÜ][a-zçğıiöşü]+(?:\s[A-ZÇĞIİÖŞÜ][a-zçğıiöşü]+)?",
+            score=0.85,
+        ),
+        Pattern(
+            name="person_after_im",
+            regex=r"(?<=[Ii]'m )[A-ZÇĞIİÖŞÜ][a-zçğıiöşü]+(?:\s[A-ZÇĞIİÖŞÜ][a-zçğıiöşü]+)?",
+            score=0.85,
+        ),
+        Pattern(
+            name="person_after_i_am",
+            regex=r"(?<=[Ii] am )[A-ZÇĞIİÖŞÜ][a-zçğıiöşü]+(?:\s[A-ZÇĞIİÖŞÜ][a-zçğıiöşü]+)?",
+            score=0.85,
+        ),
+        # Türkçe bağlam tetikleyicileri
+        Pattern(
+            name="person_after_adim",
+            regex=r"(?<=[Aa]dım )[A-ZÇĞIİÖŞÜ][a-zçğıiöşü]+(?:\s[A-ZÇĞIİÖŞÜ][a-zçğıiöşü]+)?",
+            score=0.85,
+        ),
+        Pattern(
+            name="person_after_ismim",
+            regex=r"(?<=[Ii]smim )[A-ZÇĞIİÖŞÜ][a-zçğıiöşü]+(?:\s[A-ZÇĞIİÖŞÜ][a-zçğıiöşü]+)?",
+            score=0.85,
+        ),
+        Pattern(
+            name="person_after_ben",
+            regex=r"(?<=[Bb]en )[A-ZÇĞIİÖŞÜ][a-zçğıiöşü]+(?:\s[A-ZÇĞIİÖŞÜ][a-zçğıiöşü]+)?",
+            score=0.75,
+        ),
+        # Genel: ardışık iki büyük harfli kelime ("Zeynep Kaya helped me")
+        Pattern(
+            name="person_full_name",
+            regex=r"\b[A-ZÇĞIİÖŞÜ][a-zçğıiöşü]{2,}\s[A-ZÇĞIİÖŞÜ][a-zçğıiöşü]{2,}\b",
+            score=0.65,
+        ),
+    ],
+    # Önemli: Presidio default flag'leri re.DOTALL | re.MULTILINE | re.IGNORECASE içerir.
+    # IGNORECASE pattern'larımızdaki [A-Z] sınıflarını küçük harfle de eşleştirir → istenmez.
+    # Bu yüzden IGNORECASE'i çıkarıyoruz; case sensitivity bizim için kritik.
+    global_regex_flags=re.DOTALL | re.MULTILINE,
+)
+
 # ---------------------------------------------------------------------------
 # Analyzer setup
 # ---------------------------------------------------------------------------
@@ -200,6 +256,7 @@ analyzer.registry.add_recognizer(password_recognizer)
 analyzer.registry.add_recognizer(phone_recognizer)
 analyzer.registry.add_recognizer(tc_kimlik_recognizer)
 analyzer.registry.add_recognizer(health_data_recognizer)
+analyzer.registry.add_recognizer(person_recognizer)
 
 
 # ---------------------------------------------------------------------------
